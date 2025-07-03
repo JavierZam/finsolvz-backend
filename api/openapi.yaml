@@ -1,0 +1,357 @@
+openapi: 3.0.0
+info:
+  title: Go finsolvz-backend API
+  description: A clean architecture Go finsolvz-backend API documentation.
+  version: 1.0.0
+  contact:
+    name: Your Name
+    email: your.email@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+  - url: https://api.example.com # Generic placeholder for production URL
+    description: Production Environment
+
+tags:
+  - name: General
+    description: General server information and health checks
+  - name: Auth
+    description: User authentication and management
+  - name: Other_Modules # Placeholder for future modules like Client, Project, etc.
+    description: Other business functionalities
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      operationId: healthCheck
+      tags:
+        - General
+      responses:
+        '200':
+          description: Server is healthy and database is reachable.
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /info:
+    get:
+      summary: Get server information
+      operationId: getServerInfo
+      tags:
+        - General
+      responses:
+        '200':
+          description: Server information.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerInfoResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/register:
+    post:
+      summary: Register a new user
+      operationId: registerUser
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User successfully registered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      summary: Log in a user and get JWT tokens
+      operationId: loginUser
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/refresh:
+    post:
+      summary: Refresh access token using a refresh token
+      operationId: refreshTokens
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Tokens successfully refreshed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/user/me:
+    get:
+      summary: Get current authenticated user's info
+      operationId: getCurrentUserInfo
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Successfully retrieved authenticated user info.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "You accessed an authenticated endpoint!"
+                  userID:
+                    type: string
+                    format: uuid
+                  tenantID:
+                    type: string
+                    format: uuid
+                  role:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Unique application-specific error code.
+          example: "INVALID_INPUT"
+        message:
+          type: string
+          description: Human-readable error message.
+          example: "Invalid request payload or parameters"
+        details:
+          type: string
+          description: Optional, more technical details or validation errors.
+          example: "Validation failed: Name is required"
+
+    ServerInfoResponse:
+      type: object
+      properties:
+        appName:
+          type: string
+          example: "Go finsolvz-backend Backend"
+        appVersion:
+          type: string
+          example: "1.0.0"
+        goVersion:
+          type: string
+          example: "1.22.x"
+        environment:
+          type: string
+          example: "development"
+        currentTime:
+          type: string
+          format: date-time
+          example: "2025-06-28T10:00:00Z"
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - phoneNumber
+        - tenant_id
+      properties:
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          minLenght: 8
+          example: "Password123!"
+        phoneNumber:
+          type: string
+          example: "+1234567890"
+        tenant_id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-4a7b-8c9d-0f1e2d3c4b5a"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "Password123!"
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: JWT Access Token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDUiLCJ0ZW5hbnRfaWQiOiJhYmMxMjMifQ.signature"
+        refresh_token:
+          type: string
+          description: JWT Refresh Token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDUifQ.signature"
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: JWT Refresh Token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDUifQ.signature"
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "8c84b42b-5f33-4f9e-b2d4-1a2b3c4d5e6f"
+        tenant_id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-4a7b-8c9d-0f1e2d3c4b5a"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        name:
+          type: string
+          example: "John Doe"
+        phone_number:
+          type: string
+          example: "+1234567890"
+        role:
+          type: string
+          example: "user"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-06-28T10:00:00Z"
+
+  responses:
+    BadRequestError:
+      description: Invalid request payload or parameters.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Authentication required or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ForbiddenError:
+      description: Access denied for this resource due to insufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Resource conflict or already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: An unexpected internal server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailableError:
+      description: Service is temporarily unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
