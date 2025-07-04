@@ -1,193 +1,634 @@
-# 🚀 Golang Clean Architecture Starterpack
+# 🏦 Finsolvz Backend API
 
-This is a Golang backend starterpack built with **Clean Architecture** principles (also known as Hexagonal Architecture or Port and Adapters). This starterpack is designed to provide a solid, modular, and easy-to-maintain foundation for Go web applications, focusing on *testability*, *scalability*, and *developer experience*.
-
-It is suitable for projects that require a well-organized structure from the outset and are flexible enough to evolve, including multi-tenancy implementation and potential microservices adaptation in the future.
+**Finsolvz Backend** is a comprehensive financial solutions management system built with **Go** and **Clean Architecture** principles. The system provides robust APIs for user management, company management, and financial report type management with role-based access control.
 
 ## ✨ Key Features
 
-* **Clean Architecture:** Clear project structure separating `domain`, `service` (usecase), `handler` (transport), and `repository` (persistence) layers for robust, testable, and maintainable code.
-* **Go Modules:** Modern Go dependency management for reliable builds.
-* **Structured Logging:** Uses `go.uber.org/zap` for consistent, high-performance, and structured logging, crucial for debugging and monitoring.
-* **Custom Error Handling:** A structured custom error system (`internal/utils/errors`) with consistent mapping to HTTP status codes, ensuring uniform API error responses.
-* **Pagination Helper:** Generic utility (`internal/utils/response`) and DTOs (Data Transfer Objects) for consistent pagination implementation across various list endpoints.
-* **Database Ready:** Initial configuration for PostgreSQL with SQLX, equipped with robust schema setup via `golang-migrate/migrate` CLI for reliable database migrations.
-    * **Note on Schema:** Uses `id UUID PRIMARY KEY` and `tenant_id UUID` for robust identification and multi-tenancy.
-* **Docker Support:** `Dockerfile` for application containerization and Docker (via Makefile) for easy local PostgreSQL database setup and management.
-* **Makefile:** Comprehensive automation scripts for common development tasks (build, test, lint, Docker commands, database management including full resets and migrations).
-* **GCP Ready:** Architecture is designed to be highly compatible for seamless deployment to Google Cloud Platform services (e.g., Cloud Run, Cloud SQL, Kubernetes), with a `cloudbuild.yaml` example.
-* **OpenAPI (Swagger) Documentation:** Includes the `api/` directory for API specifications (`openapi.yaml`), essential for generating and visualizing comprehensive API documentation.
-* **Demo API: User Authentication Module:** A fully functional authentication module (Register, Login, Refresh Token) demonstrating the Clean Architecture pattern, JWT implementation, and `bcrypt` for password hashing.
-* **Architectural Demo: Employee Module (Disabled by Default):** The `employee` module files are included in the repository for architectural demonstration purposes (showing how a module is structured), but it is **not wired into the application by default** as its schema is not compatible with the `users` table.
+* **🔐 JWT Authentication & Authorization** - Secure login with role-based access control (SUPER_ADMIN, ADMIN, CLIENT)
+* **👥 User Management** - Complete CRUD operations with role management and password reset functionality
+* **🏢 Company Management** - Multi-tenant company management with user associations
+* **📊 Report Type Management** - Manage different types of financial reports
+* **🚀 Clean Architecture** - Modular design with clear separation of concerns (Domain, Service, Repository, Handler)
+* **📝 Structured Logging** - Comprehensive logging for debugging and monitoring
+* **🔧 Email Service** - Automated email notifications for password reset
+* **🐳 Docker Ready** - Containerized application for easy deployment
+* **☁️ GCP Compatible** - Ready for Google Cloud Platform deployment
+* **📖 Interactive API Documentation** - Swagger UI for testing and documentation
 
 ## 🛠️ Technology Stack
 
-* **Programming Language:** Go (Golang)
-* **Web Framework:** [Gorilla Mux](https://github.com/gorilla/mux)
-* **Database:** PostgreSQL
-* **ORM/Query Builder:** [SQLX](https://github.com/jmoiron/sqlx)
-* **Logging:** [Zap](https://github.com/uber-go/zap)
-* **Validation:** [go-playground/validator](https://go-playground.github.io/validator)
-* **JWT:** [golang-jwt/jwt/v5](https://github.com/golang-jwt/jwt)
-* **Password Hashing:** [golang.org/x/crypto/bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt)
-* **UUID Generation:** [google/uuid](https://github.com/google/uuid)
-* **Database Migrations:** [golang-migrate/migrate](https://golang-migrate.run/)
+* **Language:** Go 1.22.4
+* **Web Framework:** Gorilla Mux
+* **Database:** MongoDB
+* **Authentication:** JWT (golang-jwt/jwt/v5)
+* **Password Hashing:** bcrypt
+* **Validation:** go-playground/validator/v10
+* **CORS:** rs/cors
 * **Containerization:** Docker
-* **Linter:** [golangci-lint](https://golangci-lint.run/)
+* **Email Service:** SMTP (Gmail)
+* **Documentation:** OpenAPI 3.0 + Swagger UI
 
-## 🚀 Getting Started (Local Setup)
+## 📋 Prerequisites
 
-Follow the steps below to run the starterpack on your local machine.
+### **For Development (Recommended: WSL on Windows)**
 
-### Prerequisites
+* **Windows with WSL2** (Ubuntu 20.04+ recommended)
+* **Go 1.22.4+** installed in WSL
+* **Docker** installed and running in WSL
+* **MongoDB** (local installation or MongoDB Atlas)
+* **Git** for version control
 
-Ensure you have the following tools installed and properly configured:
+### **Alternative: Native Linux/macOS**
 
+* **Go 1.22.4+**
+* **Docker**
+* **MongoDB**
 * **Git**
-* **Visual Studio Code (VS Code)** with **Go**, **Remote - WSL**, and **Docker** extensions.
-* **Docker Desktop** with **WSL 2 backend enabled** and integration for your Linux distro.
-* **WSL 2** and your preferred Linux Distribution (e.g., Ubuntu).
-* **Go SDK** installed within your WSL environment (`go version`).
-* **`make`**, `curl`, `tar` installed within your WSL environment.
 
-### Setup Steps
+### **Windows Native (Not Recommended for Docker)**
 
-1.  **Clone the Repository:**
-    * Navigate to your desired directory in WSL.
-    * ```bash
-        git clone [https://github.com/yourusername/starterpack-golang-cleanarch.git](https://github.com/yourusername/starterpack-golang-cleanarch.git) # REPLACE WITH YOUR REPO URL
-        cd starterpack-golang-cleanarch
-        ```
-    * **Note:** If adapting for a new project, you'd clone, delete `.git` folder, `git init`, and then adjust Go module name and `APP_NAME` in `Makefile`.
+* **Go 1.22.4+**
+* **Docker Desktop**
+* **MongoDB**
+* **Git**
 
-2.  **Install Go Dependencies:**
-    * ```bash
-        go mod tidy
-        go clean -cache
-        ```
+## 🚀 Development Setup
 
-3.  **Configure Environment Variables:**
-    * Create a `.env` file from `.env.example`:
-        ```bash
-        cp .env.example .env
-        # Edit .env as needed.
-        ```
-    * **IMPORTANT:** Ensure no trailing spaces in `.env` values.
+### **Option A: WSL Setup (Recommended)**
 
-4.  **Perform a Full Database Reset & Migrate:**
-    * This command will stop/remove old containers, prune unused volumes (deleting old database data), start a fresh PostgreSQL container, and then apply all database migrations using `golang-migrate`.
-    * ```bash
-        make docker-reset-db
-        ```
-    * **Verify Database:** After this command, run `docker exec -it starterpack-golang-cleanarch-db psql -U starteruser -d starterdb -c "\dt"`. You should see `users` and `schema_migrations` tables.
+#### **1. Install WSL and Dependencies**
 
-5.  **Run the Go Application:**
-    * ```bash
-        make run
-        ```
-    * The application will build and start running at `http://localhost:8080`.
+```bash
+# On Windows, install WSL2 with Ubuntu
+wsl --install -d Ubuntu
 
-## 🧪 Testing the API
+# Launch WSL
+wsl
 
-Once your application is running, you can test the available API endpoints.
+# Update system
+sudo apt update && sudo apt upgrade -y
 
-### 1. Test General Endpoints (No Authentication Required)
+# Install essential tools
+sudo apt install -y curl git build-essential
 
-* **Health Check:**
-    ```bash
-    curl http://localhost:8080/health
-    ```
-    Expected: `OK`
-* **Server Info:**
-    ```bash
-    curl http://localhost:8080/info
-    ```
-    Expected: JSON response with app/server info.
+# Install Go 1.22.4
+wget https://go.dev/dl/go1.22.4.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.22.4.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
 
-### 2. Access OpenAPI (Swagger) Documentation
+# Verify Go installation
+go version
+```
 
-You can view the interactive API documentation using Swagger UI.
+#### **2. Install Docker in WSL**
 
-1.  **Ensure Docker Desktop is running.**
-2.  **Run Swagger UI container:**
-    ```bash
-    docker run -p 8081:8080 -e SWAGGER_JSON=/app/openapi.yaml -v $(pwd)/api:/app swaggerapi/swagger-ui
-    ```
-3.  **Open your web browser** and navigate to: `http://localhost:8081`
-    You will see the interactive API documentation based on your `api/openapi.yaml` file.
+```bash
+# Install Docker
+sudo apt install -y docker.io
 
-### 3. Test User Authentication Module (Auth Endpoints)
+# Start Docker service
+sudo service docker start
 
-This module demonstrates user registration, login, and token refreshing. Refer to the **Swagger UI** at `http://localhost:8081` for detailed request/response schemas and examples for these endpoints:
+# Add user to docker group
+sudo usermod -aG docker $USER
 
-* **`POST /auth/register`**: Register a new user.
-* **`POST /auth/login`**: Log in a user and get JWT tokens.
-* **`POST /auth/refresh`**: Refresh access token using a refresh token.
-* **`GET /api/v1/user/me`**: Get current authenticated user's info (requires `access_token`).
+# Restart WSL to apply group changes
+exit
+wsl
 
-Use `curl` or tools like Postman/Insomnia to test these endpoints. For authenticated endpoints, include the `access_token` in the `Authorization` header (e.g., `-H "Authorization: Bearer YOUR_ACCESS_TOKEN"`).
+# Verify Docker
+docker --version
+docker ps
+```
 
-## 📂 Project Structure
+#### **3. Setup Project**
 
-This project structure adheres to Clean Architecture principles for clear modularity and separation of concerns:
+```bash
+# Create workspace
+mkdir -p ~/workspace
+cd ~/workspace
 
-![Project Architecture](https://github.com/JavierZam/starterpack-golang-cleanarch/blob/master/architecture.png?raw=true)
+# Clone project (or copy from Windows)
+git clone <your-repository-url> finsolvz-backend
+# OR copy from Windows: cp -r /mnt/c/path/to/finsolvz-backend ./
 
-## ⚙️ Development Guide
+cd finsolvz-backend
+```
 
-### 1. Adapting for a Real Project (e.g., ADVIZ Intranet Backend)
+### **Option B: Native Linux/macOS**
 
-This starterpack is designed to be a strong starting point. Here's what you'll need to adjust when transitioning to your actual ADVIZ project:
+```bash
+# Install Go (if not installed)
+# Download from https://golang.org/dl/
 
-1.  **Git Repository & Go Module Name:**
-    * After cloning this starterpack, you'll typically delete the `.git` folder (`rm -rf .git`) and initialize a new Git repository (`git init`).
-    * Then, you'll link it to your actual ADVIZ Git repository (e.g., on GitLab/GitHub Enterprise).
-    * **Crucially, you MUST change the Go module name** in `go.mod` (e.g., `module gitlab.adviz.co.id/intranet/backend`).
-    * Perform a **global find-and-replace** (`starterpack-golang-cleanarch` -> `your-new-module-name`) across your entire codebase to update all import paths.
-    * Update `APP_NAME` in `Makefile` to your actual application name.
+# Install Docker
+# Follow official Docker installation for your OS
 
-2.  **Database Schema & Migrations:**
-    * The `migrations/000001_create_auth_tables.up.sql` creates a `users` table suitable for authentication.
-    * For other business domains (e.g., Clients, Projects, Tax Reports), you will **create new migration files** (e.g., `migrations/000002_create_clients_table.up.sql`).
-    * **Consider UUID vs. SERIAL:** The current setup uses `UUID` for `id` and `tenant_id` in the `users` table. This is generally recommended for distributed systems. If your project requires `SERIAL PRIMARY KEY` (integer) for IDs, you'll need to adjust the migration SQL and corresponding Go types (`int64`) in `domain`, `repository`, `service`, and DTOs.
+# Clone project
+git clone <your-repository-url>
+cd finsolvz-backend
+```
 
-3.  **Environment Variables (`.env`):**
-    * Update all database credentials (`DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_HOST`, `DB_PORT`) to match your actual development database.
-    * **Generate a strong, random `JWT_SECRET`** for your project. Never use the default "this-is-a-super-secret-jwt-key..." in any environment beyond local development.
-    * Adjust `JWT_EXPIRES_IN_MINUTES` and `REFRESH_TOKEN_EXPIRES_IN_HOURS` as per your security policy.
+## ⚙️ Configuration
 
-4.  **Implement Real Business Modules:**
-    * You will create new modules under `internal/app/` (e.g., `internal/app/client`, `internal/app/project`, `internal/app/taxreport`).
-    * For each new module, follow the consistent Clean Architecture pattern: `domain` entity, `repository` interface, `repository` implementation, `model` (DTOs), `errors` (custom module errors), `service` (business logic), and `handler` (API endpoints).
-    * **Wiring:** In `cmd/server/main.go`, you will add the Dependency Injection (DI) wiring for these new modules to the `authenticatedRouter` (if they require authentication).
+### **1. Environment Variables**
 
-5.  **Authentication & Authorization:**
-    * The `auth` module provides the core. You might need to expand it with features like password reset, email verification, or more granular role-based access control (RBAC) in `internal/platform/http/middleware/`.
+```bash
+# Copy environment template
+cp .env.example .env
 
-6.  **OpenAPI (Swagger) Documentation:**
-    * Update `api/openapi.yaml` to reflect your actual project's `info` (title, description, contact).
-    * Add comprehensive definitions for all new API endpoints and their DTOs for each module you build.
+# Edit configuration
+nano .env
+```
 
-7.  **CI/CD Pipeline (`cloudbuild.yaml`):**
-    * Adjust the `cloudbuild.yaml` file to use your actual GCP Project ID, desired region, and specific service names for Cloud Run/Kubernetes.
-    * **Crucially, configure secrets in Google Secret Manager** for `_DB_PASSWORD`, `_JWT_SECRET`, and any other sensitive credentials, and bind them to your Cloud Build trigger.
+**Example .env configuration:**
 
-### 2. General Consistency Guidelines for Future Development
+```env
+GREETING="✨ Finsolvz Backend API ✨"
+PORT=8787
+MONGO_URI=mongodb://localhost:27017/Finsolvz
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+APP_ENV=development
 
-When implementing new features or modules, always adhere to these guidelines:
+# Email Configuration (for password reset)
+NODEMAILER_EMAIL=your-email@gmail.com
+NODEMAILER_PASS=your-app-password
+```
 
-* **Layer Separation:**
-    * **Domain:** Pure business entities and repository interfaces. No `http.Request`, `sql.DB`, or `json` tags.
-    * **Repository:** Database interaction only. Implements `domain` interfaces. Handles `sql.ErrNoRows`.
-    * **Service:** Business logic, validation, orchestration. Depends on `domain` interfaces. Maps `domain` to `app` DTOs.
-    * **Handler:** HTTP interaction only. Parses requests, validates DTOs, calls `service`, formats responses. Depends on `app` DTOs and `service`.
-* **`context.Context`:** Always pass `context.Context` as the first argument in method signatures across layers.
-* **`TenantID`:** For multi-tenant data, ensure `tenantID` is extracted from `context.Context` in the handler and passed down to the service and repository layers, where it's used in all database queries (`WHERE tenant_id = ...`).
-* **Error Handling:**
-    * Use `internal/utils/errors.New(...)` for all custom application errors.
-    * `fmt.Errorf("...: %w", err)` to wrap underlying errors.
-    * `utils.HandleHTTPError` in handlers for consistent API error responses.
-* **DTOs:** Define all request/response structs in `internal/app/[module_name]/model.go`. Use `json` and `validate` tags.
-* **Validation:** Use `validator.Validate().Struct(req)` in handlers.
-* **Logging:** Use `internal/utils/log` functions (`log.Info`, `log.Error`, `log.Debugf`) with `context.Context`.
-* **Testing:** Write unit tests for `service` (mocking repositories) and integration tests for `repository` (with a real test DB) and `handler` (mocking service).
+### **2. Install Dependencies**
+
+```bash
+# Install Go modules
+go mod tidy
+
+# Verify dependencies
+go mod verify
+```
+
+### **3. Setup MongoDB**
+
+**Option A: Local MongoDB**
+```bash
+# Ubuntu/WSL
+sudo apt install -y mongodb
+sudo systemctl start mongodb
+sudo systemctl enable mongodb
+```
+
+**Option B: MongoDB Atlas (Cloud)**
+```bash
+# Create free cluster at https://cloud.mongodb.com
+# Update MONGO_URI in .env with connection string
+```
+
+**Option C: Docker MongoDB**
+```bash
+# Run MongoDB in Docker
+docker run -d --name mongo-finsolvz -p 27017:27017 mongo:7.0
+```
+
+## 🚀 Running the Application
+
+### **1. Start Backend Server**
+
+```bash
+# In WSL or your development environment
+cd ~/workspace/finsolvz-backend
+
+# Run the application
+go run cmd/server/main.go
+
+# Or build and run
+go build -o bin/finsolvz-backend cmd/server/main.go
+./bin/finsolvz-backend
+```
+
+Backend will be available at: **http://localhost:8787**
+
+### **2. Create Admin User**
+
+```bash
+# Create default admin account
+go run create_admin.go
+
+# Output will show:
+# ✅ Admin created!
+# Email: admin@finsolvz.com
+# Password: admin123
+```
+
+### **3. Start Swagger UI Documentation**
+
+#### **For WSL/Linux (Recommended):**
+
+```bash
+# Ensure you're in the project directory
+cd ~/workspace/finsolvz-backend
+
+# Clean up any existing Swagger containers
+docker stop $(docker ps -q --filter "ancestor=swaggerapi/swagger-ui") 2>/dev/null || true
+docker rm $(docker ps -aq --filter "ancestor=swaggerapi/swagger-ui") 2>/dev/null || true
+
+# Start Swagger UI (will auto-find available port)
+# Try port 8081 first, then 8082, 8083, etc. if busy
+docker run -d --name swagger-finsolvz -p 8082:8080 -e SWAGGER_JSON=/app/openapi.yaml -v $(pwd)/api:/app swaggerapi/swagger-ui
+
+# Verify container is running
+docker ps
+
+# Check logs if needed
+docker logs swagger-finsolvz
+```
+
+#### **For Windows Native (Alternative):**
+
+```powershell
+# In PowerShell (as Administrator)
+cd C:\path\to\finsolvz-backend
+
+# Start Swagger UI
+docker run -d --name swagger-finsolvz -p 8082:8080 -e SWAGGER_JSON=/app/openapi.yaml -v "${PWD}/api:/app" swaggerapi/swagger-ui
+```
+
+#### **Troubleshooting Port Conflicts:**
+
+```bash
+# If port 8082 is busy, try different ports
+docker run -d --name swagger-finsolvz -p 8083:8080 -e SWAGGER_JSON=/app/openapi.yaml -v $(pwd)/api:/app swaggerapi/swagger-ui
+
+# Or use auto-detection script
+cat > start-swagger.sh << 'EOF'
+#!/bin/bash
+PORTS=(8081 8082 8083 9000)
+for port in "${PORTS[@]}"; do
+    if ! netstat -tlnp 2>/dev/null | grep ":$port " > /dev/null; then
+        echo "🚀 Starting Swagger UI on port $port"
+        docker run -d --name swagger-finsolvz -p $port:8080 -e SWAGGER_JSON=/app/openapi.yaml -v $(pwd)/api:/app swaggerapi/swagger-ui
+        echo "✅ Swagger UI: http://localhost:$port"
+        break
+    fi
+done
+EOF
+
+chmod +x start-swagger.sh
+./start-swagger.sh
+```
+
+## 📖 Using Swagger UI Documentation
+
+### **1. Access Documentation**
+
+Open your browser to: **http://localhost:8082** (or the port shown in terminal)
+
+### **2. Testing API Workflow**
+
+#### **Step 1: Test Health Check**
+1. Find `GET /` endpoint
+2. Click "Try it out"
+3. Click "Execute"
+4. Should return status "healthy"
+
+#### **Step 2: Login and Get Token**
+1. Find `POST /api/login` endpoint
+2. Click "Try it out"
+3. Enter credentials:
+   ```json
+   {
+     "email": "admin@finsolvz.com",
+     "password": "admin123"
+   }
+   ```
+4. Click "Execute"
+5. Copy the `access_token` from response
+
+#### **Step 3: Authorize for Protected Endpoints**
+1. Click **"Authorize"** button (🔒) at top right
+2. Enter: `Bearer YOUR_ACCESS_TOKEN`
+3. Click "Authorize"
+
+#### **Step 4: Test Protected Endpoints**
+Now you can test:
+- `GET /api/users` - Get all users
+- `GET /api/loginUser` - Get current user info
+- `GET /api/company` - Get companies
+- `GET /api/reportTypes` - Get report types
+- `POST /api/register` - Create new user (SUPER_ADMIN only)
+
+### **3. API Testing Examples**
+
+#### **Create New User (SUPER_ADMIN only):**
+```json
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "password": "securePassword123!",
+  "role": "CLIENT"
+}
+```
+
+#### **Create Company:**
+```json
+{
+  "name": "Acme Corporation",
+  "profilePicture": "https://example.com/logo.png",
+  "user": ["USER_ID_HERE"]
+}
+```
+
+#### **Create Report Type:**
+```json
+{
+  "name": "Monthly Financial Report"
+}
+```
+
+## 🔧 Development Commands
+
+### **Essential Commands**
+
+```bash
+# Start backend
+go run cmd/server/main.go
+
+# Create admin user
+go run create_admin.go
+
+# Start Swagger UI
+docker run -d --name swagger-finsolvz -p 8082:8080 -e SWAGGER_JSON=/app/openapi.yaml -v $(pwd)/api:/app swaggerapi/swagger-ui
+
+# View Swagger logs
+docker logs swagger-finsolvz
+
+# Stop Swagger UI
+docker stop swagger-finsolvz
+
+# Remove Swagger container
+docker rm swagger-finsolvz
+```
+
+### **Development Workflow Script**
+
+Create a development helper script:
+
+```bash
+cat > dev.sh << 'EOF'
+#!/bin/bash
+
+echo "🚀 Finsolvz Development Helper"
+echo "==============================="
+
+case "$1" in
+    "start")
+        echo "Starting all services..."
+        
+        # Start MongoDB if using Docker
+        docker start mongo-finsolvz 2>/dev/null || echo "MongoDB: start manually or use Atlas"
+        
+        # Start Swagger UI
+        docker stop swagger-finsolvz 2>/dev/null || true
+        docker rm swagger-finsolvz 2>/dev/null || true
+        docker run -d --name swagger-finsolvz -p 8082:8080 -e SWAGGER_JSON=/app/openapi.yaml -v $(pwd)/api:/app swaggerapi/swagger-ui
+        
+        echo "✅ Swagger UI: http://localhost:8082"
+        echo "🔧 Now run: go run cmd/server/main.go"
+        ;;
+        
+    "stop")
+        echo "Stopping services..."
+        docker stop swagger-finsolvz mongo-finsolvz 2>/dev/null || true
+        echo "✅ Services stopped"
+        ;;
+        
+    "status")
+        echo "Service Status:"
+        echo "==============="
+        
+        # Check backend
+        if curl -s http://localhost:8787 > /dev/null 2>&1; then
+            echo "✅ Backend API: http://localhost:8787"
+        else
+            echo "❌ Backend API: Not running"
+        fi
+        
+        # Check Swagger
+        if curl -s http://localhost:8082 > /dev/null 2>&1; then
+            echo "✅ Swagger UI: http://localhost:8082"
+        else
+            echo "❌ Swagger UI: Not running"
+        fi
+        
+        # Check MongoDB
+        if docker ps | grep mongo-finsolvz > /dev/null; then
+            echo "✅ MongoDB: Running in Docker"
+        else
+            echo "ℹ️  MongoDB: Check manual installation or Atlas"
+        fi
+        ;;
+        
+    "test")
+        echo "Testing API..."
+        
+        # Test health
+        echo "1. Health Check:"
+        curl -s http://localhost:8787 | grep -o '"message":"[^"]*"' || echo "❌ Backend not responding"
+        
+        # Test login
+        echo -e "\n2. Login Test:"
+        response=$(curl -s -X POST http://localhost:8787/api/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"admin@finsolvz.com","password":"admin123"}')
+        
+        if echo "$response" | grep -q "access_token"; then
+            echo "✅ Login successful"
+        else
+            echo "❌ Login failed: $response"
+        fi
+        ;;
+        
+    *)
+        echo "Usage: ./dev.sh {start|stop|status|test}"
+        echo ""
+        echo "Commands:"
+        echo "  start  - Start Swagger UI and MongoDB"
+        echo "  stop   - Stop all services"
+        echo "  status - Check service status"  
+        echo "  test   - Test API endpoints"
+        echo ""
+        echo "Manual commands:"
+        echo "  Backend: go run cmd/server/main.go"
+        echo "  Admin:   go run create_admin.go"
+        ;;
+esac
+EOF
+
+chmod +x dev.sh
+```
+
+Usage:
+```bash
+./dev.sh start    # Start services
+./dev.sh status   # Check status
+./dev.sh test     # Test API
+./dev.sh stop     # Stop services
+```
+
+## 🐳 Docker Deployment
+
+### **Build Docker Image**
+```bash
+docker build -t finsolvz-backend .
+```
+
+### **Run with Docker Compose**
+```yaml
+version: '3.8'
+services:
+  finsolvz-backend:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/Finsolvz
+      - JWT_SECRET=your-production-secret
+    depends_on:
+      - mongo
+      
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8082:8080"
+    environment:
+      - SWAGGER_JSON=/app/openapi.yaml
+    volumes:
+      - ./api:/app
+
+volumes:
+  mongo_data:
+```
+
+## ☁️ Production Deployment
+
+### **Google Cloud Platform**
+
+```bash
+# Build and deploy to Cloud Run
+gcloud builds submit --tag gcr.io/PROJECT_ID/finsolvz-backend
+gcloud run deploy finsolvz-backend \
+  --image gcr.io/PROJECT_ID/finsolvz-backend \
+  --platform managed \
+  --region asia-southeast2 \
+  --allow-unauthenticated
+```
+
+## 🔧 Troubleshooting
+
+### **Common Issues**
+
+#### **1. Port Already in Use**
+```bash
+# Find what's using the port
+sudo netstat -tlnp | grep :8082
+
+# Kill the process
+sudo fuser -k 8082/tcp
+
+# Or use different port
+docker run -p 8083:8080 ...
+```
+
+#### **2. Docker Permission Denied (WSL)**
+```bash
+# Add user to docker group
+sudo usermod -aG docker $USER
+
+# Restart WSL
+exit
+wsl
+```
+
+#### **3. Volume Mount Not Working**
+```bash
+# Check current directory
+pwd
+
+# Use absolute path
+docker run -v "/full/path/to/project/api:/app" ...
+
+# Or copy method
+docker cp api/openapi.yaml container_name:/usr/share/nginx/html/
+```
+
+#### **4. MongoDB Connection Issues**
+```bash
+# Check MongoDB status
+sudo systemctl status mongodb
+
+# Check connection string in .env
+echo $MONGO_URI
+
+# Test connection
+mongo $MONGO_URI
+```
+
+## 📊 Monitoring & Logging
+
+All requests and errors are logged with structured format. Check logs in development:
+
+```bash
+# Backend logs
+go run cmd/server/main.go
+
+# Docker container logs
+docker logs swagger-finsolvz
+docker logs mongo-finsolvz
+```
+
+## 📞 Support
+
+- **Documentation**: Swagger UI at http://localhost:8082
+- **API Base URL**: http://localhost:8787
+- **Default Admin**: admin@finsolvz.com / admin123
+
+## 🔄 Development Workflow Summary
+
+1. **Setup Environment**:
+   ```bash
+   # WSL with Go, Docker, MongoDB
+   git clone <repo>
+   cp .env.example .env
+   go mod tidy
+   ```
+
+2. **Start Services**:
+   ```bash
+   ./dev.sh start  # Start Swagger UI
+   go run cmd/server/main.go  # Start backend
+   ```
+
+3. **Create Admin**:
+   ```bash
+   go run create_admin.go
+   ```
+
+4. **Test API**:
+   - Open http://localhost:8082
+   - Login to get token
+   - Authorize and test endpoints
+
+5. **Development Loop**:
+   - Modify code
+   - Restart backend
+   - Test in Swagger UI
+   - Update documentation in `api/openapi.yaml`
+
+---
+
+**Built with ❤️ for financial solutions management**

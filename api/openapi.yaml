@@ -1,95 +1,72 @@
 openapi: 3.0.0
 info:
-  title: Go finsolvz-backend API
-  description: A clean architecture Go finsolvz-backend API documentation.
+  title: Finsolvz Backend API
+  description: |
+    Comprehensive financial solutions management system with JWT authentication, 
+    user management, company management, and report type management.
+    
+    **Authentication Required**: Most endpoints require a valid JWT token in the Authorization header.
+    
+    **Roles**:
+    - `SUPER_ADMIN`: Full system access
+    - `ADMIN`: User and company management  
+    - `CLIENT`: Limited read access
+    
+    **Base URL**: `http://localhost:8787` (development)
   version: 1.0.0
   contact:
-    name: Your Name
-    email: your.email@example.com
+    name: Finsolvz Team
+    email: support@finsolvz.com
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8787
     description: Local Development Server
-  - url: https://api.example.com # Generic placeholder for production URL
+  - url: https://finsolvz-backend.example.com
     description: Production Environment
 
 tags:
   - name: General
-    description: General server information and health checks
-  - name: Auth
-    description: User authentication and management
-  - name: Other_Modules # Placeholder for future modules like Client, Project, etc.
-    description: Other business functionalities
+    description: General endpoints (health check, server info)
+  - name: Authentication
+    description: User authentication and password management
+  - name: User Management
+    description: User CRUD operations and role management
+  - name: Company Management
+    description: Company CRUD operations and user associations
+  - name: Report Types
+    description: Financial report type management
 
 paths:
-  /health:
+  /:
     get:
-      summary: Health check endpoint
+      summary: Health check and server greeting
       operationId: healthCheck
       tags:
         - General
       responses:
         '200':
-          description: Server is healthy and database is reachable.
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: "OK"
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /info:
-    get:
-      summary: Get server information
-      operationId: getServerInfo
-      tags:
-        - General
-      responses:
-        '200':
-          description: Server information.
+          description: Server is healthy
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ServerInfoResponse'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "✨ Finsolvz Backend API ✨"
+                  status:
+                    type: string
+                    example: "healthy"
 
-  /auth/register:
+  /api/login:
     post:
-      summary: Register a new user
-      operationId: registerUser
+      summary: User login
+      operationId: login
       tags:
-        - Auth
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterRequest'
-      responses:
-        '201':
-          description: User successfully registered.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserResponse'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '409':
-          $ref: '#/components/responses/ConflictError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /auth/login:
-    post:
-      summary: Log in a user and get JWT tokens
-      operationId: loginUser
-      tags:
-        - Auth
+        - Authentication
       requestBody:
         required: true
         content:
@@ -98,55 +75,36 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Successful login.
+          description: Successful login
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '400':
           $ref: '#/components/responses/BadRequestError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
 
-  /auth/refresh:
+  /api/forgot-password:
     post:
-      summary: Refresh access token using a refresh token
-      operationId: refreshTokens
+      summary: Request password reset
+      operationId: forgotPassword
       tags:
-        - Auth
+        - Authentication
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshTokenRequest'
+              $ref: '#/components/schemas/ForgotPasswordRequest'
       responses:
         '200':
-          description: Tokens successfully refreshed.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
-        '400':
-          $ref: '#/components/responses/BadRequestError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-
-  /api/v1/user/me:
-    get:
-      summary: Get current authenticated user's info
-      operationId: getCurrentUserInfo
-      tags:
-        - Auth
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successfully retrieved authenticated user info.
+          description: Password reset email sent
           content:
             application/json:
               schema:
@@ -154,22 +112,555 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "You accessed an authenticated endpoint!"
-                  userID:
+                    example: "New password has been sent to your email"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/reset-password:
+    post:
+      summary: Reset password with token
+      operationId: resetPassword
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
                     type: string
-                    format: uuid
-                  tenantID:
+                    example: "Password successfully reset"
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/register:
+    post:
+      summary: Register new user (SUPER_ADMIN only)
+      operationId: register
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
                     type: string
-                    format: uuid
-                  role:
-                    type: string
-        '401':
-          $ref: '#/components/responses/UnauthorizedError'
+                    example: "Success"
+                  newUser:
+                    $ref: '#/components/schemas/UserResponse'
         '403':
           $ref: '#/components/responses/ForbiddenError'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
 
+  /api/users:
+    get:
+      summary: Get all users (ADMIN+ only)
+      operationId: getUsers
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/users/{id}:
+    get:
+      summary: Get user by ID
+      operationId: getUserById
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      summary: Update user
+      operationId: updateUser
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "User updated"
+                  updatedUser:
+                    $ref: '#/components/schemas/UserResponse'
+
+    delete:
+      summary: Delete user (SUPER_ADMIN only)
+      operationId: deleteUser
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Success"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/loginUser:
+    get:
+      summary: Get current authenticated user
+      operationId: getLoginUser
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+  /api/updateRole:
+    put:
+      summary: Update user role (SUPER_ADMIN only)
+      operationId: updateRole
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+      responses:
+        '200':
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Success"
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/change-password:
+    patch:
+      summary: Change current user password
+      operationId: changePassword
+      tags:
+        - User Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Password successfully changed"
+
+  /api/company:
+    get:
+      summary: Get all companies
+      operationId: getCompanies
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyResponse'
+
+    post:
+      summary: Create new company
+      operationId: createCompany
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompanyRequest'
+      responses:
+        '201':
+          description: Company created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Company created successfully"
+                  company:
+                    $ref: '#/components/schemas/CompanyResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/company/{id}:
+    get:
+      summary: Get company by ID
+      operationId: getCompanyById
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: Company details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      summary: Update company (SUPER_ADMIN only)
+      operationId: updateCompany
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompanyRequest'
+      responses:
+        '200':
+          description: Company updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Success"
+                  company:
+                    $ref: '#/components/schemas/CompanyResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+    delete:
+      summary: Delete company (SUPER_ADMIN only)
+      operationId: deleteCompany
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: Company deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Company deleted successfully"
+                  company:
+                    $ref: '#/components/schemas/CompanyResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/company/{name}:
+    get:
+      summary: Get company by name
+      operationId: getCompanyByName
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "Acme Corporation"
+      responses:
+        '200':
+          description: Company details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/user/companies:
+    get:
+      summary: Get current user's companies
+      operationId: getUserCompanies
+      tags:
+        - Company Management
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of user's companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyResponse'
+
+  /api/reportTypes:
+    get:
+      summary: Get all report types
+      operationId: getReportTypes
+      tags:
+        - Report Types
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of report types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportTypeResponse'
+
+    post:
+      summary: Create new report type
+      operationId: createReportType
+      tags:
+        - Report Types
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportTypeRequest'
+      responses:
+        '201':
+          description: Report type created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Report type added successfully"
+                  reportType:
+                    $ref: '#/components/schemas/ReportTypeResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/reportTypes/{idOrName}:
+    get:
+      summary: Get report type by ID or name
+      operationId: getReportTypeByIdOrName
+      tags:
+        - Report Types
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: idOrName
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+          description: Report type ID (24 hex chars) or name
+      responses:
+        '200':
+          description: Report type details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportTypeResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/reportTypes/{id}:
+    put:
+      summary: Update report type
+      operationId: updateReportType
+      tags:
+        - Report Types
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReportTypeRequest'
+      responses:
+        '200':
+          description: Report type updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Report Type updated successfully"
+                  reportType:
+                    $ref: '#/components/schemas/ReportTypeResponse'
+
+    delete:
+      summary: Delete report type
+      operationId: deleteReportType
+      tags:
+        - Report Types
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '204':
+          description: Report type deleted successfully
 
 components:
   securitySchemes:
@@ -177,73 +668,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: JWT token obtained from login endpoint
 
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        code:
-          type: string
-          description: Unique application-specific error code.
-          example: "INVALID_INPUT"
-        message:
-          type: string
-          description: Human-readable error message.
-          example: "Invalid request payload or parameters"
-        details:
-          type: string
-          description: Optional, more technical details or validation errors.
-          example: "Validation failed: Name is required"
-
-    ServerInfoResponse:
-      type: object
-      properties:
-        appName:
-          type: string
-          example: "Go finsolvz-backend Backend"
-        appVersion:
-          type: string
-          example: "1.0.0"
-        goVersion:
-          type: string
-          example: "1.22.x"
-        environment:
-          type: string
-          example: "development"
-        currentTime:
-          type: string
-          format: date-time
-          example: "2025-06-28T10:00:00Z"
-
-    RegisterRequest:
-      type: object
-      required:
-        - name
-        - email
-        - password
-        - phoneNumber
-        - tenant_id
-      properties:
-        name:
-          type: string
-          example: "John Doe"
-        email:
-          type: string
-          format: email
-          example: "user@example.com"
-        password:
-          type: string
-          format: password
-          minLenght: 8
-          example: "Password123!"
-        phoneNumber:
-          type: string
-          example: "+1234567890"
-        tenant_id:
-          type: string
-          format: uuid
-          example: "a1b2c3d4-e5f6-4a7b-8c9d-0f1e2d3c4b5a"
-
+    # Authentication Schemas
     LoginRequest:
       type: object
       required:
@@ -253,105 +681,337 @@ components:
         email:
           type: string
           format: email
-          example: "user@example.com"
+          example: "admin@finsolvz.com"
         password:
           type: string
           format: password
-          example: "Password123!"
+          example: "admin123"
 
-    AuthResponse:
-      type: object
-      properties:
-        access_token:
-          type: string
-          description: JWT Access Token
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDUiLCJ0ZW5hbnRfaWQiOiJhYmMxMjMifQ.signature"
-        refresh_token:
-          type: string
-          description: JWT Refresh Token
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDUifQ.signature"
-        user:
-          $ref: '#/components/schemas/UserResponse'
-
-    RefreshTokenRequest:
+    ForgotPasswordRequest:
       type: object
       required:
-        - refresh_token
+        - email
       properties:
-        refresh_token:
-          type: string
-          description: JWT Refresh Token
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMTIzNDUifQ.signature"
-
-    UserResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          example: "8c84b42b-5f33-4f9e-b2d4-1a2b3c4d5e6f"
-        tenant_id:
-          type: string
-          format: uuid
-          example: "a1b2c3d4-e5f6-4a7b-8c9d-0f1e2d3c4b5a"
         email:
           type: string
           format: email
           example: "user@example.com"
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - newPassword
+      properties:
+        token:
+          type: string
+          example: "reset-token-string"
+        newPassword:
+          type: string
+          format: password
+          minLength: 6
+          example: "newPassword123!"
+
+    # User Management Schemas
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - role
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: "securePassword123!"
+        role:
+          type: string
+          enum: [SUPER_ADMIN, ADMIN, CLIENT]
+          example: "CLIENT"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "John Updated"
+        email:
+          type: string
+          format: email
+          example: "john.updated@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: "newPassword123!"
+        role:
+          type: string
+          enum: [SUPER_ADMIN, ADMIN, CLIENT]
+          example: "ADMIN"
+
+    UpdateRoleRequest:
+      type: object
+      required:
+        - userId
+        - newRole
+      properties:
+        userId:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+        newRole:
+          type: string
+          enum: [SUPER_ADMIN, ADMIN, CLIENT]
+          example: "ADMIN"
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - newPassword
+        - confirmPassword
+      properties:
+        newPassword:
+          type: string
+          format: password
+          minLength: 6
+          example: "newPassword123!"
+        confirmPassword:
+          type: string
+          format: password
+          minLength: 6
+          example: "newPassword123!"
+
+    UserResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
         name:
           type: string
           example: "John Doe"
-        phone_number:
+        email:
           type: string
-          example: "+1234567890"
+          format: email
+          example: "john.doe@example.com"
         role:
           type: string
-          example: "user"
-        created_at:
+          enum: [SUPER_ADMIN, ADMIN, CLIENT]
+          example: "CLIENT"
+        company:
+          type: array
+          items:
+            type: string
+          example: ["60f1b2e5e4b0c7a1d8b9c0d2"]
+        createdAt:
           type: string
           format: date-time
-          example: "2025-06-28T10:00:00Z"
+          example: "2023-07-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+
+    # Company Management Schemas
+    CreateCompanyRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Acme Corporation"
+        profilePicture:
+          type: string
+          format: uri
+          example: "https://example.com/logo.png"
+        user:
+          type: array
+          items:
+            type: string
+          example: ["60f1b2e5e4b0c7a1d8b9c0d1", "60f1b2e5e4b0c7a1d8b9c0d2"]
+
+    UpdateCompanyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: "Acme Corporation Updated"
+        profilePicture:
+          type: string
+          format: uri
+          example: "https://example.com/new-logo.png"
+        user:
+          type: array
+          items:
+            type: string
+          example: ["60f1b2e5e4b0c7a1d8b9c0d1"]
+
+    CompanyResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+        name:
+          type: string
+          example: "Acme Corporation"
+        profilePicture:
+          type: string
+          format: uri
+          example: "https://example.com/logo.png"
+        user:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserInfo'
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+
+    UserInfo:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+        name:
+          type: string
+          example: "John Doe"
+
+    # Report Type Schemas
+    CreateReportTypeRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Monthly Financial Report"
+
+    UpdateReportTypeRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Updated Report Type"
+
+    ReportTypeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+        name:
+          type: string
+          example: "Monthly Financial Report"
+
+    # Error Schemas
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Application-specific error code
+          example: "INVALID_INPUT"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Invalid request payload"
+        details:
+          type: string
+          description: Additional error details
+          example: "Validation failed: email is required"
 
   responses:
     BadRequestError:
-      description: Invalid request payload or parameters.
+      description: Invalid request payload or parameters
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "BAD_REQUEST"
+            message: "Invalid request payload or parameters"
+            details: "Validation failed: email is required"
+
     UnauthorizedError:
-      description: Authentication required or invalid credentials.
+      description: Authentication required or invalid credentials
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "UNAUTHORIZED"
+            message: "Authentication required"
+            details: "Invalid or missing JWT token"
+
     ForbiddenError:
-      description: Access denied for this resource due to insufficient permissions.
+      description: Access denied due to insufficient permissions
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "FORBIDDEN"
+            message: "Access denied"
+            details: "Insufficient permissions for this operation"
+
     NotFoundError:
-      description: Resource not found.
+      description: Resource not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "NOT_FOUND"
+            message: "Resource not found"
+            details: "The requested resource could not be found"
+
     ConflictError:
-      description: Resource conflict or already exists.
+      description: Resource conflict or already exists
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "CONFLICT"
+            message: "Resource conflict"
+            details: "Email already registered"
+
     InternalServerError:
-      description: An unexpected internal server error occurred.
+      description: Internal server error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-    ServiceUnavailableError:
-      description: Service is temporarily unavailable.
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: "INTERNAL_SERVER_ERROR"
+            message: "An unexpected internal server error occurred"
+            details: "Please try again later"
