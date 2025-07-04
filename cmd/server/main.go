@@ -13,6 +13,7 @@ import (
 	"github.com/rs/cors"
 
 	"finsolvz-backend/internal/app/auth"
+	"finsolvz-backend/internal/app/reporttype"
 	"finsolvz-backend/internal/app/user"
 	"finsolvz-backend/internal/config"
 	"finsolvz-backend/internal/platform/http/middleware"
@@ -37,15 +38,18 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repository.NewUserMongoRepository(db)
+	reportTypeRepo := repository.NewReportTypeMongoRepository(db)
 
 	// Initialize services
 	emailService := utils.NewEmailService()
 	authService := auth.NewService(userRepo, emailService)
 	userService := user.NewService(userRepo)
+	reportTypeService := reporttype.NewService(reportTypeRepo)
 
-	// Initialize handlers - ✅ PASS AUTH SERVICE TO USER HANDLER
+	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
-	userHandler := user.NewHandler(userService, authService)  // ✅ Added authService parameter
+	userHandler := user.NewHandler(userService, authService)
+	reportTypeHandler := reporttype.NewHandler(reportTypeService)
 
 	// Setup router
 	router := mux.NewRouter()
@@ -65,6 +69,7 @@ func main() {
 	// Register routes
 	authHandler.RegisterRoutes(router)
 	userHandler.RegisterRoutes(router, middleware.AuthMiddleware)
+	reportTypeHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 
 	// Health check endpoint
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
