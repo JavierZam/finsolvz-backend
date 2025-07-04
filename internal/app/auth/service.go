@@ -1,3 +1,4 @@
+// internal/app/auth/service.go - VERIFY THIS FILE HAS CORRECT INTERFACE
 package auth
 
 import (
@@ -11,6 +12,7 @@ import (
 	"finsolvz-backend/internal/utils/errors"
 )
 
+// ✅ Make sure this interface uses the correct types from model.go
 type Service interface {
 	Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error)
 	Login(ctx context.Context, req LoginRequest) (*AuthResponse, error)

@@ -1,10 +1,11 @@
 package auth
 
 import (
+	"time"
 	"finsolvz-backend/internal/domain"
 )
 
-// Request DTOs
+// Request DTOs - ALL REQUIRED TYPES
 type RegisterRequest struct {
 	Name     string `json:"name" validate:"required,min=2,max=50"`
 	Email    string `json:"email" validate:"required,email"`
@@ -28,16 +29,18 @@ type ResetPasswordRequest struct {
 
 // Response DTOs
 type AuthResponse struct {
-	Token string   `json:"token"`
-	User  UserInfo `json:"user"`
+	Token string   `json:"access_token"`
+	User  UserInfo `json:"user,omitempty"`
 }
 
 type UserInfo struct {
-	ID      string   `json:"id"`
-	Name    string   `json:"name"`
-	Email   string   `json:"email"`
-	Role    string   `json:"role"`
-	Company []string `json:"company"`
+	ID        string    `json:"_id"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	Role      string    `json:"role"`
+	Company   []string  `json:"company"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 // Helper to convert domain.User to UserInfo
@@ -48,10 +51,12 @@ func ToUserInfo(user *domain.User) UserInfo {
 	}
 
 	return UserInfo{
-		ID:      user.ID.Hex(),
-		Name:    user.Name,
-		Email:   user.Email,
-		Role:    string(user.Role),
-		Company: companyIDs,
+		ID:        user.ID.Hex(),
+		Name:      user.Name,
+		Email:     user.Email,
+		Role:      string(user.Role),
+		Company:   companyIDs,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	}
 }

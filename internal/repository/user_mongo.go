@@ -7,7 +7,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"finsolvz-backend/internal/domain"
 	"finsolvz-backend/internal/utils/errors"
@@ -64,10 +63,58 @@ func (r *userMongoRepository) GetByEmail(ctx context.Context, email string) (*do
 	return &user, nil
 }
 
+// ✅ ENHANCED: GetAll method with comprehensive company field handling
 func (r *userMongoRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
-	// Exclude password from results
-	opts := options.Find().SetProjection(bson.M{"password": 0})
-	cursor, err := r.collection.Find(ctx, bson.M{}, opts)
+	// Enhanced aggregation pipeline to handle ALL legacy data scenarios
+	pipeline := []bson.M{
+		{
+			"$project": bson.M{
+				"_id":       1,
+				"name":      1,
+				"email":     1,
+				"role":      1,
+				"createdAt": 1,
+				"updatedAt": 1,
+				// Enhanced company field handling for ALL scenarios
+				"company": bson.M{
+					"$switch": bson.M{
+						"branches": []bson.M{
+							{
+								// Case 1: Field doesn't exist
+								"case": bson.M{"$eq": []interface{}{bson.M{"$type": "$company"}, "missing"}},
+								"then": []primitive.ObjectID{}, // Return empty array
+							},
+							{
+								// Case 2: Field is null
+								"case": bson.M{"$eq": []interface{}{"$company", nil}},
+								"then": []primitive.ObjectID{}, // Return empty array
+							},
+							{
+								// Case 3: Field is string (legacy format)
+								"case": bson.M{"$eq": []interface{}{bson.M{"$type": "$company"}, "string"}},
+								"then": []primitive.ObjectID{}, // Convert string to empty array for now
+							},
+							{
+								// Case 4: Field is proper ObjectId array
+								"case": bson.M{"$isArray": "$company"},
+								"then": "$company", // Use as-is
+							},
+							{
+								// Case 5: Field is single ObjectId
+								"case": bson.M{"$eq": []interface{}{bson.M{"$type": "$company"}, "objectId"}},
+								"then": []interface{}{"$company"}, // Wrap in array
+							},
+						},
+						"default": []primitive.ObjectID{}, // Fallback to empty array
+					},
+				},
+				// Remove unwanted fields from legacy data
+				// Don't include: password, __v, resetPasswordToken, etc.
+			},
+		},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, errors.New("DATABASE_ERROR", "Failed to get users", 500, err, nil)
 	}

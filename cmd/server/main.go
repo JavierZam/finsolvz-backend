@@ -43,9 +43,9 @@ func main() {
 	authService := auth.NewService(userRepo, emailService)
 	userService := user.NewService(userRepo)
 
-	// Initialize handlers
+	// Initialize handlers - ✅ PASS AUTH SERVICE TO USER HANDLER
 	authHandler := auth.NewHandler(authService)
-	userHandler := user.NewHandler(userService)
+	userHandler := user.NewHandler(userService, authService)  // ✅ Added authService parameter
 
 	// Setup router
 	router := mux.NewRouter()

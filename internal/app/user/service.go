@@ -17,7 +17,7 @@ type Service interface {
 	GetUserByID(ctx context.Context, id string) (*UserResponse, error)
 	GetLoginUser(ctx context.Context) (*UserResponse, error)
 	UpdateUser(ctx context.Context, id string, req UpdateUserRequest) (*UserResponse, error)
-	DeleteUser(ctx context.Context, id string) error
+	DeleteUser(ctx context.Context, id string) (*UserResponse, error)  // ✅ Updated return type
 	UpdateRole(ctx context.Context, req UpdateRoleRequest) (*UserResponse, error)
 	ChangePassword(ctx context.Context, req ChangePasswordRequest) error
 }
@@ -159,13 +159,23 @@ func (s *service) UpdateUser(ctx context.Context, id string, req UpdateUserReque
 	return &response, nil
 }
 
-func (s *service) DeleteUser(ctx context.Context, id string) error {
+func (s *service) DeleteUser(ctx context.Context, id string) (*UserResponse, error) {
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return errors.New("INVALID_USER_ID", "Invalid user ID format", 400, err, nil)
+		return nil, errors.New("INVALID_USER_ID", "Invalid user ID format", 400, err, nil)
 	}
 
-	return s.userRepo.Delete(ctx, objectID)
+	user, err := s.userRepo.GetByID(ctx, objectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.userRepo.Delete(ctx, objectID); err != nil {
+		return nil, err
+	}
+
+	response := ToUserResponse(user)
+	return &response, nil
 }
 
 func (s *service) UpdateRole(ctx context.Context, req UpdateRoleRequest) (*UserResponse, error) {

@@ -21,16 +21,13 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
-// RegisterRoutes registers auth routes - REMOVE REGISTER!
+// RegisterRoutes registers auth routes
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	// REMOVED: router.HandleFunc("/api/register", h.Register).Methods("POST")
+	// Public routes (no authentication required)
 	router.HandleFunc("/api/login", h.Login).Methods("POST")
 	router.HandleFunc("/api/forgot-password", h.ForgotPassword).Methods("POST")
 	router.HandleFunc("/api/reset-password", h.ResetPassword).Methods("POST")
 }
-
-// REMOVE Register method entirely from auth handler
-// Only keep Login, ForgotPassword, ResetPassword
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest

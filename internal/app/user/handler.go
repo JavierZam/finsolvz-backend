@@ -6,19 +6,23 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gorilla/mux"
 
+	"finsolvz-backend/internal/app/auth"
 	"finsolvz-backend/internal/platform/http/middleware"
 	"finsolvz-backend/internal/utils"
 )
 
 type Handler struct {
-	service   Service
-	validator *validator.Validate
+	service     Service
+	authService auth.Service  // ✅ Add auth service for register
+	validator   *validator.Validate
 }
 
-func NewHandler(service Service) *Handler {
+// ✅ Updated constructor to include auth service
+func NewHandler(service Service, authService auth.Service) *Handler {
 	return &Handler{
-		service:   service,
-		validator: validator.New(),
+		service:     service,
+		authService: authService,
+		validator:   validator.New(),
 	}
 }
 
@@ -38,11 +42,38 @@ func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Ha
 	// Role management - SUPER_ADMIN only
 	superAdminOnly := protected.PathPrefix("").Subrouter()
 	superAdminOnly.Use(middleware.RequireRole("SUPER_ADMIN"))
-	superAdminOnly.HandleFunc("/api/register", h.CreateUser).Methods("POST")
+	superAdminOnly.HandleFunc("/api/register", h.Register).Methods("POST")  // ✅ ADD REGISTER HERE
 	superAdminOnly.HandleFunc("/api/updateRole", h.UpdateRole).Methods("PUT")
 
 	// Password change
 	protected.HandleFunc("/api/change-password", h.ChangePassword).Methods("PATCH")
+}
+
+// ✅ NEW: Register method using auth service (SUPER_ADMIN only)
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+	var req auth.RegisterRequest  // Use auth.RegisterRequest
+	if err := utils.DecodeJSON(r, &req); err != nil {
+		utils.HandleHTTPError(w, err, r)
+		return
+	}
+
+	if err := h.validator.Struct(req); err != nil {
+		utils.HandleValidationError(w, err, r)
+		return
+	}
+
+	// Use auth service to register (includes token generation)
+	response, err := h.authService.Register(r.Context(), req)
+	if err != nil {
+		utils.HandleHTTPError(w, err, r)
+		return
+	}
+
+	// Return same format as legacy Node.js
+	utils.RespondJSON(w, http.StatusCreated, map[string]interface{}{
+		"message": "Success",
+		"newUser": response.User,  // Only return user info, not token
+	})
 }
 
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +100,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Rest of handler methods remain the same...
 func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	// Check if user has permission (SUPER_ADMIN or ADMIN)
 	userCtx, ok := middleware.GetUserFromContext(r.Context())
@@ -160,13 +192,17 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	if err := h.service.DeleteUser(r.Context(), id); err != nil {
+	// Get deleted user data from service
+	deletedUser, err := h.service.DeleteUser(r.Context(), id)
+	if err != nil {
 		utils.HandleHTTPError(w, err, r)
 		return
 	}
 
+	// Return same format as legacy Node.js
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 		"message": "Success",
+		"user":    deletedUser,
 	})
 }
 
