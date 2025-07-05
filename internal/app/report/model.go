@@ -6,14 +6,14 @@ import (
 	"finsolvz-backend/internal/domain"
 )
 
-// Request DTOs - sesuai dengan legacy Node.js format
+// ✅ FIXED: Request DTOs - exact field names sesuai dengan legacy Node.js
 type CreateReportRequest struct {
 	ReportName string      `json:"reportName" validate:"required,min=1,max=200"`
 	ReportType string      `json:"reportType" validate:"required"`
 	Year       string      `json:"year" validate:"required"`
 	Company    string      `json:"company" validate:"required"`
 	Currency   *string     `json:"currency,omitempty"`
-	CreateBy   string      `json:"createBy" validate:"required"`
+	CreateBy   string      `json:"createBy" validate:"required"` // ✅ FIXED: "createBy" bukan "createdBy"
 	UserAccess []string    `json:"userAccess,omitempty"`
 	ReportData interface{} `json:"reportData,omitempty"`
 }
@@ -29,18 +29,18 @@ type UpdateReportRequest struct {
 }
 
 type GetReportsByCompaniesRequest struct {
-	CompanyIds []string `json:"companyIds" validate:"required,min=2"`
+	CompanyIds []string `json:"companyIds" validate:"required,min=2"` // ✅ Legacy expects "companyIds"
 }
 
-// Response DTOs - EXACT format seperti legacy Node.js dengan populate
+// ✅ Response DTOs - EXACT format seperti legacy Node.js dengan populate
 type ReportResponse struct {
 	ID         string          `json:"_id"`
 	ReportName string          `json:"reportName"`
 	ReportType *ReportTypeInfo `json:"reportType"`
-	Year       string          `json:"year"`
+	Year       string          `json:"year"` // ✅ Always string
 	Company    *CompanyInfo    `json:"company"`
 	Currency   *string         `json:"currency"`
-	CreatedBy  *UserInfo       `json:"createdBy"`
+	CreatedBy  *UserInfo       `json:"createdBy"` // ✅ Response uses "createdBy"
 	UserAccess []*UserInfo     `json:"userAccess"`
 	ReportData interface{}     `json:"reportData"`
 	CreatedAt  time.Time       `json:"createdAt"`
@@ -70,16 +70,21 @@ type UserInfo struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// Helper functions untuk konversi domain ke response
+// ✅ ENHANCED: Helper functions untuk konversi domain ke response
 func ToReportResponse(report *domain.PopulatedReport) *ReportResponse {
 	response := &ReportResponse{
 		ID:         report.ID.Hex(),
 		ReportName: report.ReportName,
-		Year:       report.Year,
+		Year:       report.Year, // Already guaranteed to be string from repo fix
 		Currency:   report.Currency,
 		ReportData: report.ReportData,
 		CreatedAt:  report.CreatedAt,
 		UpdatedAt:  report.UpdatedAt,
+	}
+
+	// ✅ Handle nil case untuk reportData seperti legacy
+	if response.ReportData == nil {
+		response.ReportData = []interface{}{} // Default empty array like legacy
 	}
 
 	// Convert ReportType
@@ -113,7 +118,7 @@ func ToReportResponse(report *domain.PopulatedReport) *ReportResponse {
 		}
 	}
 
-	// Convert UserAccess array
+	// Convert UserAccess array - handle nil case
 	if report.UserAccess != nil {
 		response.UserAccess = make([]*UserInfo, len(report.UserAccess))
 		for i, user := range report.UserAccess {
@@ -127,7 +132,7 @@ func ToReportResponse(report *domain.PopulatedReport) *ReportResponse {
 			}
 		}
 	} else {
-		response.UserAccess = []*UserInfo{}
+		response.UserAccess = []*UserInfo{} // Empty array like legacy
 	}
 
 	return response

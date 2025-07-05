@@ -35,7 +35,7 @@ func NewService(reportRepo domain.ReportRepository) Service {
 }
 
 func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*ReportResponse, error) {
-	// Validate and convert ObjectIDs
+	// ✅ Validate and convert ObjectIDs
 	reportTypeID, err := primitive.ObjectIDFromHex(req.ReportType)
 	if err != nil {
 		return nil, errors.New("INVALID_REPORT_TYPE_ID", "Invalid report type ID format", 400, err, nil)
@@ -46,6 +46,7 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 		return nil, errors.New("INVALID_COMPANY_ID", "Invalid company ID format", 400, err, nil)
 	}
 
+	// ✅ FIXED: Handle "createBy" field from request
 	createdByID, err := primitive.ObjectIDFromHex(req.CreateBy)
 	if err != nil {
 		return nil, errors.New("INVALID_USER_ID", "Invalid created by user ID format", 400, err, nil)
@@ -61,7 +62,7 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 		userAccessIDs = append(userAccessIDs, userID)
 	}
 
-	// Store report data as-is (exactly like legacy - no AI processing)
+	// ✅ Store report data as-is (exactly like legacy - no AI processing)
 	var reportData interface{}
 	if req.ReportData != nil {
 		reportData = req.ReportData
@@ -73,7 +74,7 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 	report := &domain.Report{
 		ReportName: strings.TrimSpace(req.ReportName),
 		ReportType: reportTypeID,
-		Year:       strings.TrimSpace(req.Year),
+		Year:       strings.TrimSpace(req.Year), // ✅ Ensure it's stored as string
 		Company:    companyID,
 		Currency:   req.Currency,
 		CreatedBy:  createdByID,
@@ -142,7 +143,7 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 	}
 
 	if req.Year != nil {
-		updateReport.Year = strings.TrimSpace(*req.Year)
+		updateReport.Year = strings.TrimSpace(*req.Year) // ✅ Ensure string
 	}
 
 	if req.Company != nil {
@@ -170,7 +171,7 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 	}
 
 	if req.ReportData != nil {
-		// Store new report data as-is (exactly like legacy - no AI processing)
+		// ✅ Store new report data as-is (exactly like legacy - no AI processing)
 		updateReport.ReportData = req.ReportData
 	}
 

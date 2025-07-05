@@ -35,9 +35,21 @@ func (r *reportMongoRepository) Create(ctx context.Context, report *domain.Repor
 	return nil
 }
 
-// Helper function untuk membuat aggregation pipeline dengan populate (seperti Mongoose populate)
+// ✅ ENHANCED: Helper function untuk membuat aggregation pipeline dengan year type handling
 func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 	return []bson.M{
+		// ✅ FIX: Handle mixed year types (string/integer) dari legacy data
+		{
+			"$addFields": bson.M{
+				"year": bson.M{
+					"$cond": bson.M{
+						"if":   bson.M{"$eq": []interface{}{bson.M{"$type": "$year"}, "int"}},
+						"then": bson.M{"$toString": "$year"}, // Convert integer to string
+						"else": "$year",                      // Keep as string if already string
+					},
+				},
+			},
+		},
 		// Populate company
 		{
 			"$lookup": bson.M{
@@ -92,12 +104,12 @@ func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 				"as":           "userAccess",
 			},
 		},
-		// Remove password field from populated users
+		// ✅ EXACT legacy format: Remove password field from populated users
 		{
 			"$project": bson.M{
 				"_id":        1,
 				"reportName": 1,
-				"year":       1,
+				"year":       1, // Now guaranteed to be string
 				"currency":   1,
 				"reportData": 1,
 				"createdAt":  1,
@@ -289,7 +301,7 @@ func (r *reportMongoRepository) Update(ctx context.Context, id primitive.ObjectI
 		"$set": bson.M{
 			"reportName": report.ReportName,
 			"reportType": report.ReportType,
-			"year":       report.Year,
+			"year":       report.Year, // Ensure it's saved as string
 			"company":    report.Company,
 			"currency":   report.Currency,
 			"createdBy":  report.CreatedBy,

@@ -13,11 +13,10 @@ import (
 
 type Handler struct {
 	service     Service
-	authService auth.Service  // ✅ Add auth service for register
+	authService auth.Service
 	validator   *validator.Validate
 }
 
-// ✅ Updated constructor to include auth service
 func NewHandler(service Service, authService auth.Service) *Handler {
 	return &Handler{
 		service:     service,
@@ -26,32 +25,30 @@ func NewHandler(service Service, authService auth.Service) *Handler {
 	}
 }
 
-// RegisterRoutes registers user routes
+// ✅ FIXED: RegisterRoutes - No role-based middleware, auth check in controller like legacy
 func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Handler) http.Handler) {
-	// Protected routes - require authentication
+	// Protected routes - require authentication only
 	protected := router.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware)
 
-	// User management routes
+	// ✅ All routes use same pattern as legacy - auth check in controller if needed
 	protected.HandleFunc("/api/users", h.GetUsers).Methods("GET")
 	protected.HandleFunc("/api/users/{id}", h.GetUserByID).Methods("GET")
 	protected.HandleFunc("/api/loginUser", h.GetLoginUser).Methods("GET")
 	protected.HandleFunc("/api/users/{id}", h.UpdateUser).Methods("PUT")
 	protected.HandleFunc("/api/users/{id}", h.DeleteUser).Methods("DELETE")
 
-	// Role management - SUPER_ADMIN only
-	superAdminOnly := protected.PathPrefix("").Subrouter()
-	superAdminOnly.Use(middleware.RequireRole("SUPER_ADMIN"))
-	superAdminOnly.HandleFunc("/api/register", h.Register).Methods("POST")  // ✅ ADD REGISTER HERE
-	superAdminOnly.HandleFunc("/api/updateRole", h.UpdateRole).Methods("PUT")
+	// ✅ FIXED: Register route - no role middleware, check in controller like legacy
+	protected.HandleFunc("/api/register", h.Register).Methods("POST")
+	protected.HandleFunc("/api/updateRole", h.UpdateRole).Methods("PUT")
 
 	// Password change
 	protected.HandleFunc("/api/change-password", h.ChangePassword).Methods("PATCH")
 }
 
-// ✅ NEW: Register method using auth service (SUPER_ADMIN only)
+// ✅ FIXED: Register method - authorization check in controller like legacy
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	var req auth.RegisterRequest  // Use auth.RegisterRequest
+	var req auth.RegisterRequest
 	if err := utils.DecodeJSON(r, &req); err != nil {
 		utils.HandleHTTPError(w, err, r)
 		return
@@ -59,6 +56,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.validator.Struct(req); err != nil {
 		utils.HandleValidationError(w, err, r)
+		return
+	}
+
+	// ✅ EXACT legacy authorization check pattern
+	userCtx, ok := middleware.GetUserFromContext(r.Context())
+	if !ok || userCtx.Role != "SUPER_ADMIN" {
+		utils.HandleHTTPError(w, utils.ErrForbidden, r)
 		return
 	}
 
@@ -69,40 +73,16 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return same format as legacy Node.js
+	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusCreated, map[string]interface{}{
 		"message": "Success",
-		"newUser": response.User,  // Only return user info, not token
+		"newUser": response.User, // Only return user info, not token
 	})
 }
 
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var req CreateUserRequest
-	if err := utils.DecodeJSON(r, &req); err != nil {
-		utils.HandleHTTPError(w, err, r)
-		return
-	}
-
-	if err := h.validator.Struct(req); err != nil {
-		utils.HandleValidationError(w, err, r)
-		return
-	}
-
-	response, err := h.service.CreateUser(r.Context(), req)
-	if err != nil {
-		utils.HandleHTTPError(w, err, r)
-		return
-	}
-
-	utils.RespondJSON(w, http.StatusCreated, map[string]interface{}{
-		"message": "Success",
-		"newUser": response,
-	})
-}
-
-// Rest of handler methods remain the same...
+// ✅ FIXED: GetUsers - authorization check in controller like legacy
 func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
-	// Check if user has permission (SUPER_ADMIN or ADMIN)
+	// ✅ EXACT legacy authorization check pattern
 	userCtx, ok := middleware.GetUserFromContext(r.Context())
 	if !ok || (userCtx.Role != "SUPER_ADMIN" && userCtx.Role != "ADMIN") {
 		utils.HandleHTTPError(w, utils.ErrForbidden, r)
@@ -141,16 +121,10 @@ func (h *Handler) GetLoginUser(w http.ResponseWriter, r *http.Request) {
 	utils.RespondJSON(w, http.StatusOK, user)
 }
 
+// ✅ FIXED: UpdateUser - authorization check in controller like legacy
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-
-	// Check if user can update (SUPER_ADMIN only for role changes)
-	userCtx, ok := middleware.GetUserFromContext(r.Context())
-	if !ok {
-		utils.HandleHTTPError(w, utils.ErrUnauthorized, r)
-		return
-	}
 
 	var req UpdateUserRequest
 	if err := utils.DecodeJSON(r, &req); err != nil {
@@ -163,8 +137,9 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Only SUPER_ADMIN can change roles
-	if req.Role != nil && userCtx.Role != "SUPER_ADMIN" {
+	// ✅ EXACT legacy authorization check pattern - only SUPER_ADMIN can update
+	userCtx, ok := middleware.GetUserFromContext(r.Context())
+	if !ok || userCtx.Role != "SUPER_ADMIN" {
 		utils.HandleHTTPError(w, utils.ErrForbidden, r)
 		return
 	}
@@ -181,31 +156,32 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ✅ FIXED: DeleteUser - authorization check in controller like legacy
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	// Only SUPER_ADMIN can delete users
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// ✅ EXACT legacy authorization check pattern
 	userCtx, ok := middleware.GetUserFromContext(r.Context())
 	if !ok || userCtx.Role != "SUPER_ADMIN" {
 		utils.HandleHTTPError(w, utils.ErrForbidden, r)
 		return
 	}
 
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	// Get deleted user data from service
 	deletedUser, err := h.service.DeleteUser(r.Context(), id)
 	if err != nil {
 		utils.HandleHTTPError(w, err, r)
 		return
 	}
 
-	// Return same format as legacy Node.js
+	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 		"message": "Success",
 		"user":    deletedUser,
 	})
 }
 
+// ✅ FIXED: UpdateRole - authorization check in controller like legacy
 func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 	var req UpdateRoleRequest
 	if err := utils.DecodeJSON(r, &req); err != nil {
@@ -215,6 +191,13 @@ func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.validator.Struct(req); err != nil {
 		utils.HandleValidationError(w, err, r)
+		return
+	}
+
+	// ✅ EXACT legacy authorization check pattern
+	userCtx, ok := middleware.GetUserFromContext(r.Context())
+	if !ok || userCtx.Role != "SUPER_ADMIN" {
+		utils.HandleHTTPError(w, utils.ErrForbidden, r)
 		return
 	}
 
