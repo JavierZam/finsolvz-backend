@@ -14,6 +14,7 @@ import (
 
 	"finsolvz-backend/internal/app/auth"
 	"finsolvz-backend/internal/app/company"
+	"finsolvz-backend/internal/app/report" // ✅ NEW IMPORT
 	"finsolvz-backend/internal/app/reporttype"
 	"finsolvz-backend/internal/app/user"
 	"finsolvz-backend/internal/config"
@@ -40,20 +41,23 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserMongoRepository(db)
 	reportTypeRepo := repository.NewReportTypeMongoRepository(db)
-	companyRepo := repository.NewCompanyMongoRepository(db) // ✅ NEW
+	companyRepo := repository.NewCompanyMongoRepository(db)
+	reportRepo := repository.NewReportMongoRepository(db) // ✅ NEW REPOSITORY
 
 	// Initialize services
 	emailService := utils.NewEmailService()
 	authService := auth.NewService(userRepo, emailService)
 	userService := user.NewService(userRepo)
 	reportTypeService := reporttype.NewService(reportTypeRepo)
-	companyService := company.NewService(companyRepo, userRepo) // ✅ Simplified
+	companyService := company.NewService(companyRepo, userRepo)
+	reportService := report.NewService(reportRepo) // ✅ SIMPLIFIED - NO AI
 
 	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
 	userHandler := user.NewHandler(userService, authService)
 	reportTypeHandler := reporttype.NewHandler(reportTypeService)
-	companyHandler := company.NewHandler(companyService) // ✅ NEW
+	companyHandler := company.NewHandler(companyService)
+	reportHandler := report.NewHandler(reportService) // ✅ NEW HANDLER
 
 	// Setup router
 	router := mux.NewRouter()
@@ -74,7 +78,8 @@ func main() {
 	authHandler.RegisterRoutes(router)
 	userHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 	reportTypeHandler.RegisterRoutes(router, middleware.AuthMiddleware)
-	companyHandler.RegisterRoutes(router, middleware.AuthMiddleware) // ✅ NEW
+	companyHandler.RegisterRoutes(router, middleware.AuthMiddleware)
+	reportHandler.RegisterRoutes(router, middleware.AuthMiddleware) // ✅ NEW ROUTES
 
 	// Health check endpoint
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +113,7 @@ func main() {
 	// Start server in a goroutine
 	go func() {
 		log.Infof(ctx, "🚀🚀 Server running on http://localhost:%s 🚀🚀", port)
+		log.Infof(ctx, "📊 Report Module ready - Complete API migration!")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf(ctx, "Server failed to start: %v", err)
 		}
