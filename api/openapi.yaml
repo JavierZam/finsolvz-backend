@@ -3,17 +3,20 @@ info:
   title: Finsolvz Backend API
   description: |
     Comprehensive financial solutions management system with JWT authentication, 
-    user management, company management, and report type management.
+    user management, company management, report type management, and complete report management.
     
     **Authentication Required**: Most endpoints require a valid JWT token in the Authorization header.
     
-    **Roles**:
-    - `SUPER_ADMIN`: Full system access
-    - `ADMIN`: User and company management  
-    - `CLIENT`: Limited read access
+    **Roles & Authorization**:
+    - `SUPER_ADMIN`: Full system access including user registration, role management, and company/user operations
+    - `ADMIN`: User management access (get users list)  
+    - `CLIENT`: Basic authenticated access to reports and own profile
+    
+    **Authorization Pattern**: Authorization checks are performed at the controller level, not middleware level.
+    Most report endpoints require authentication only, while user management requires specific roles.
     
     **Base URL**: `http://localhost:8787` (development)
-  version: 1.0.0
+  version: 2.0.0
   contact:
     name: Finsolvz Team
     email: support@finsolvz.com
@@ -38,6 +41,8 @@ tags:
     description: Company CRUD operations and user associations
   - name: Report Types
     description: Financial report type management
+  - name: Reports
+    description: Complete report management with filtering and population
 
 paths:
   /:
@@ -220,7 +225,7 @@ paths:
           $ref: '#/components/responses/NotFoundError'
 
     put:
-      summary: Update user
+      summary: Update user (SUPER_ADMIN only)
       operationId: updateUser
       tags:
         - User Management
@@ -662,6 +667,303 @@ paths:
         '204':
           description: Report type deleted successfully
 
+  # ===== REPORT MANAGEMENT ENDPOINTS =====
+  /api/reports:
+    get:
+      summary: Get all reports with full population
+      operationId: getAllReports
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all reports with populated data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: Create new report
+      operationId: createReport
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: Report created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reports/{id}:
+    get:
+      summary: Get report by ID with full population
+      operationId: getReportById
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: Report details with populated data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      summary: Update existing report
+      operationId: updateReport
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReportRequest'
+      responses:
+        '200':
+          description: Report updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      summary: Delete report
+      operationId: deleteReport
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: Report deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Report deleted successfully"
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/reports/name/{name}:
+    get:
+      summary: Get report by name
+      operationId: getReportByName
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "Q4 Financial Report"
+      responses:
+        '200':
+          description: Report details with populated data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/reports/company/{companyId}:
+    get:
+      summary: Get reports by company ID
+      operationId: getReportsByCompany
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: List of reports for the company
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/reports/companies:
+    post:
+      summary: Get reports by multiple company IDs
+      operationId: getReportsByCompanies
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetReportsByCompaniesRequest'
+      responses:
+        '200':
+          description: List of reports for the specified companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportResponse'
+        '400':
+          description: Invalid request - need 2 or more companies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "INSUFFICIENT_COMPANIES"
+                message: "Need 2 or more companies"
+
+  /api/reports/reportType/{reportType}:
+    get:
+      summary: Get reports by report type ID
+      operationId: getReportsByReportType
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reportType
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+      responses:
+        '200':
+          description: List of reports for the report type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/reports/userAccess/{id}:
+    get:
+      summary: Get reports accessible by user ID
+      operationId: getReportsByUserAccess
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+          description: User ID to find reports they have access to
+      responses:
+        '200':
+          description: List of reports accessible by the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/reports/createdBy/{id}:
+    get:
+      summary: Get reports created by user ID
+      operationId: getReportsByCreatedBy
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+          description: User ID to find reports they created
+      responses:
+        '200':
+          description: List of reports created by the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -879,7 +1181,7 @@ components:
         user:
           type: array
           items:
-            $ref: '#/components/schemas/UserInfo'
+            $ref: '#/components/schemas/CompanyUserInfo'
         createdAt:
           type: string
           format: date-time
@@ -889,7 +1191,7 @@ components:
           format: date-time
           example: "2023-07-15T10:30:00Z"
 
-    UserInfo:
+    CompanyUserInfo:
       type: object
       properties:
         _id:
@@ -931,6 +1233,208 @@ components:
         name:
           type: string
           example: "Monthly Financial Report"
+
+    # Report Management Schemas
+    CreateReportRequest:
+      type: object
+      required:
+        - reportName
+        - reportType
+        - year
+        - company
+        - createBy
+      properties:
+        reportName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Q4 2024 Financial Report"
+          description: "Name of the report"
+        reportType:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+          description: "Report type ObjectID reference"
+        year:
+          type: string
+          example: "2024"
+          description: "Year as string (legacy compatibility)"
+        company:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d2"
+          description: "Company ObjectID reference"
+        currency:
+          type: string
+          example: "USD"
+          description: "Currency code (optional)"
+        createBy:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d3"
+          description: "User ObjectID who creates the report (note: createBy in request, createdBy in response)"
+        userAccess:
+          type: array
+          items:
+            type: string
+          example: ["60f1b2e5e4b0c7a1d8b9c0d4", "60f1b2e5e4b0c7a1d8b9c0d5"]
+          description: "Array of user ObjectIDs who have access to this report"
+        reportData:
+          oneOf:
+            - type: array
+              items: {}
+            - type: object
+          example: [{"title": "Revenue", "value": 1000000}, {"title": "Expenses", "value": 750000}]
+          description: "Report data structure (array or object)"
+
+    UpdateReportRequest:
+      type: object
+      properties:
+        reportName:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "Updated Q4 2024 Financial Report"
+        reportType:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+          description: "Report type ObjectID reference"
+        year:
+          type: string
+          example: "2024"
+          description: "Year as string"
+        company:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d2"
+          description: "Company ObjectID reference"
+        currency:
+          type: string
+          example: "EUR"
+        userAccess:
+          type: array
+          items:
+            type: string
+          example: ["60f1b2e5e4b0c7a1d8b9c0d4"]
+          description: "Updated array of user ObjectIDs with access"
+        reportData:
+          oneOf:
+            - type: array
+              items: {}
+            - type: object
+          example: [{"title": "Updated Revenue", "value": 1200000}]
+          description: "Updated report data structure"
+
+    GetReportsByCompaniesRequest:
+      type: object
+      required:
+        - companyIds
+      properties:
+        companyIds:
+          type: array
+          items:
+            type: string
+          minItems: 2
+          example: ["60f1b2e5e4b0c7a1d8b9c0d1", "60f1b2e5e4b0c7a1d8b9c0d2"]
+          description: "Array of company ObjectIDs (minimum 2 required)"
+
+    ReportResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+        reportName:
+          type: string
+          example: "Q4 2024 Financial Report"
+        reportType:
+          $ref: '#/components/schemas/ReportTypeInfo'
+        year:
+          type: string
+          example: "2024"
+          description: "Always returned as string for consistency"
+        company:
+          $ref: '#/components/schemas/ReportCompanyInfo'
+        currency:
+          type: string
+          example: "USD"
+        createdBy:
+          $ref: '#/components/schemas/ReportUserInfo'
+          description: "User who created the report (populated)"
+        userAccess:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReportUserInfo'
+          description: "Array of users with access to this report (populated)"
+        reportData:
+          oneOf:
+            - type: array
+              items: {}
+            - type: object
+          example: [{"title": "Revenue", "value": 1000000, "isTotal": false}]
+          description: "Report data structure (defaults to empty array if null)"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+
+    ReportTypeInfo:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d1"
+        name:
+          type: string
+          example: "Monthly Financial Report"
+
+    ReportCompanyInfo:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d2"
+        name:
+          type: string
+          example: "Acme Corporation"
+        profilePicture:
+          type: string
+          format: uri
+          example: "https://example.com/logo.png"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+
+    ReportUserInfo:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "60f1b2e5e4b0c7a1d8b9c0d3"
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        role:
+          type: string
+          enum: [SUPER_ADMIN, ADMIN, CLIENT]
+          example: "CLIENT"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-07-15T10:30:00Z"
 
     # Error Schemas
     ErrorResponse:
