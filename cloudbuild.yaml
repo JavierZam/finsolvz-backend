@@ -1,4 +1,4 @@
-# Production CI/CD Pipeline for Finsolvz Backend
+# Enhanced CI/CD Pipeline for Finsolvz Backend
 # Triggers on push to main branch
 # Builds, tests, and deploys to Cloud Run automatically
 
@@ -30,11 +30,12 @@ steps:
         CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
         echo "✅ Binary built successfully"
         ls -la main
+        file main
     env:
       - 'CGO_ENABLED=0'
       - 'GOOS=linux'
 
-  # Step 3: Build and Push Docker Image
+  # Step 3: Build and Push Docker Image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-docker-image'
     entrypoint: 'sh'
@@ -42,8 +43,8 @@ steps:
       - '-c'
       - |
         echo "🐳 Building Docker image..."
-        docker build -t gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA \
-                     -t gcr.io/$PROJECT_ID/finsolvz-backend:latest .
+        docker build -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA \
+                     -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:latest .
         echo "✅ Docker image built"
 
   - name: 'gcr.io/cloud-builders/docker'
@@ -52,9 +53,9 @@ steps:
     args:
       - '-c'
       - |
-        echo "📤 Pushing Docker image..."
-        docker push gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA
-        docker push gcr.io/$PROJECT_ID/finsolvz-backend:latest
+        echo "📤 Pushing Docker image to Artifact Registry..."
+        docker push ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA
+        docker push ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:latest
         echo "✅ Docker image pushed"
 
   # Step 4: Deploy to Cloud Run
@@ -65,19 +66,20 @@ steps:
       - '-c'
       - |
         echo "🚀 Deploying to Cloud Run..."
-        gcloud run deploy finsolvz-backend \
-          --image gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA \
-          --region asia-southeast2 \
+        gcloud run deploy ${_SERVICE_NAME} \
+          --image ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA \
+          --region ${_REGION} \
           --platform managed \
           --allow-unauthenticated \
-          --memory 1Gi \
-          --cpu 1 \
+          --memory ${_MEMORY} \
+          --cpu ${_CPU} \
           --timeout 900 \
-          --max-instances 10 \
-          --min-instances 0 \
+          --max-instances ${_MAX_INSTANCES} \
+          --min-instances ${_MIN_INSTANCES} \
           --concurrency 80 \
-          --set-env-vars="APP_ENV=production,GREETING=✨ Finsolvz Production API ✨" \
-          --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest" \
+          --port 8787 \
+          --set-env-vars="APP_ENV=production,GREETING=✨ Finsolvz Production API ✨,PORT=8787" \
+          --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest,NODEMAILER_EMAIL=NODEMAILER_EMAIL:latest,NODEMAILER_PASS=NODEMAILER_PASS:latest" \
           --quiet
 
         echo "✅ Deployment completed"
@@ -90,8 +92,8 @@ steps:
       - '-c'
       - |
         echo "🌐 Getting service URL..."
-        SERVICE_URL=$(gcloud run services describe finsolvz-backend \
-          --region asia-southeast2 \
+        SERVICE_URL=$(gcloud run services describe ${_SERVICE_NAME} \
+          --region ${_REGION} \
           --format "value(status.url)")
         echo "Service URL: $SERVICE_URL"
         echo "$SERVICE_URL" > service_url.txt
@@ -106,7 +108,7 @@ steps:
         echo "🏥 Running health check..."
         SERVICE_URL=$(cat service_url.txt)
         
-        # Wait for service to be ready
+        # Wait for service to be ready (max 5 minutes)
         for i in {1..30}; do
           if curl -f --max-time 10 "$SERVICE_URL/" > /dev/null 2>&1; then
             echo "✅ Health check passed"
@@ -119,18 +121,29 @@ steps:
         echo "❌ Health check failed after 5 minutes"
         exit 1
 
-  # Step 7: API Test
+  # Step 7: API Smoke Tests
   - name: 'gcr.io/cloud-builders/curl'
-    id: 'api-test'
+    id: 'api-smoke-test'
     entrypoint: 'sh'  
     args:
       - '-c'
       - |
-        echo "🧪 Testing API endpoints..."
+        echo "🧪 Running API smoke tests..."
         SERVICE_URL=$(cat service_url.txt)
         
-        # Test login endpoint
-        echo "Testing login..."
+        # Test health endpoint
+        echo "Testing health endpoint..."
+        HEALTH_RESPONSE=$(curl -s "$SERVICE_URL/")
+        if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
+          echo "✅ Health endpoint working"
+        else
+          echo "❌ Health endpoint failed"
+          echo "Response: $HEALTH_RESPONSE"
+          exit 1
+        fi
+        
+        # Test login endpoint with admin credentials
+        echo "Testing login endpoint..."
         LOGIN_RESPONSE=$(curl -s -X POST "$SERVICE_URL/api/login" \
           -H "Content-Type: application/json" \
           -d '{"email":"admin@finsolvz.com","password":"admin123"}')
@@ -143,39 +156,36 @@ steps:
           exit 1
         fi
         
-        # Test health endpoint
-        HEALTH_RESPONSE=$(curl -s "$SERVICE_URL/")
-        if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
-          echo "✅ Health endpoint working"
-        else
-          echo "❌ Health endpoint failed"
-          exit 1
-        fi
-        
-        echo "✅ All API tests passed"
+        echo "✅ All smoke tests passed"
 
-  # Step 8: Slack Notification (Optional)
-  - name: 'gcr.io/cloud-builders/curl'
-    id: 'notify-success'
+  # Step 8: Create deployment summary
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deployment-summary'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        echo "📢 Sending success notification..."
+        echo "📋 DEPLOYMENT SUMMARY"
+        echo "===================="
         SERVICE_URL=$(cat service_url.txt)
         
-        # You can add Slack webhook here if needed
-        # curl -X POST -H 'Content-type: application/json' \
-        #   --data "{\"text\":\"✅ Finsolvz Backend deployed successfully!\nURL: $SERVICE_URL\"}" \
-        #   $SLACK_WEBHOOK_URL
-        
-        echo "🎉 Deployment pipeline completed successfully!"
-        echo "Service URL: $SERVICE_URL"
+        echo "🚀 Service: ${_SERVICE_NAME}"
+        echo "🌐 URL: $SERVICE_URL"
+        echo "🏷️ Image: ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA"
+        echo "📅 Deployed: $(date)"
+        echo "🔗 Commit: $COMMIT_SHA"
+        echo ""
+        echo "🧪 Test endpoints:"
+        echo "- Health: $SERVICE_URL/"
+        echo "- Login: $SERVICE_URL/api/login"
+        echo "- Docs: $SERVICE_URL/docs"
+        echo ""
+        echo "🎉 Deployment completed successfully!"
 
-# Images to push to Container Registry
+# Use Artifact Registry instead of Container Registry
 images:
-  - 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/finsolvz-backend:latest'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:$COMMIT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE_NAME}:latest'
 
 # Build configuration
 options:
@@ -188,10 +198,11 @@ options:
   # Use substitution for better flexibility
   substitution_option: 'ALLOW_LOOSE'
 
-# Build triggers will use these substitutions
+# Enhanced substitutions with defaults
 substitutions:
   _SERVICE_NAME: 'finsolvz-backend'
   _REGION: 'asia-southeast2'
+  _REPOSITORY: 'finsolvz-repo'  # Create this in Artifact Registry
   _MEMORY: '1Gi'
   _CPU: '1'
   _MIN_INSTANCES: '0'
