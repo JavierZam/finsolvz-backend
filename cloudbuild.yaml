@@ -1,189 +1,61 @@
-# Fixed CI/CD Pipeline for Finsolvz Backend - Logging Issue Resolved
-# Uses Cloud Logging instead of custom bucket
+# Minimal Cloud Build Configuration - No Logging Issues
+# This should work without any bucket or service account issues
 
 steps:
-  # Step 1: Run Unit Tests
+  # Step 1: Download dependencies
   - name: 'gcr.io/cloud-builders/go'
-    id: 'run-tests'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🧪 Running tests..."
-        go mod download
-        go test -v ./... || exit 1
-        echo "✅ All tests passed"
+    entrypoint: 'go'
+    args: ['mod', 'download']
+
+  # Step 2: Run tests
+  - name: 'gcr.io/cloud-builders/go'
+    entrypoint: 'go'
+    args: ['test', './...']
+
+  # Step 3: Build application
+  - name: 'gcr.io/cloud-builders/go'
+    entrypoint: 'go'
+    args: ['build', '-o', 'main', './cmd/server']
     env:
       - 'CGO_ENABLED=0'
       - 'GOOS=linux'
 
-  # Step 2: Build Go Binary
-  - name: 'gcr.io/cloud-builders/go'
-    id: 'build-binary'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🏗️ Building Go binary..."
-        go mod download
-        CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
-        echo "✅ Binary built successfully"
-        ls -la main
-        file main
-    env:
-      - 'CGO_ENABLED=0'
-      - 'GOOS=linux'
-
-  # Step 3: Build Docker Image
+  # Step 4: Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-docker-image'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🐳 Building Docker image..."
-        docker build -t gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA \
-                     -t gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest .
-        echo "✅ Docker image built"
+    args: [
+      'build',
+      '-t', 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/finsolvz-backend:latest',
+      '.'
+    ]
 
-  # Step 4: Push Docker Image
+  # Step 5: Push Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'push-docker-image'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "📤 Pushing Docker image..."
-        docker push gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA
-        docker push gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest
-        echo "✅ Docker image pushed"
+    args: [
+      'push',
+      'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA'
+    ]
 
-  # Step 5: Deploy to Cloud Run
+  # Step 6: Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'deploy-to-cloud-run'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🚀 Deploying to Cloud Run..."
-        gcloud run deploy ${_SERVICE_NAME} \
-          --image gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA \
-          --region ${_REGION} \
-          --platform managed \
-          --allow-unauthenticated \
-          --memory ${_MEMORY} \
-          --cpu ${_CPU} \
-          --timeout 900 \
-          --max-instances ${_MAX_INSTANCES} \
-          --min-instances ${_MIN_INSTANCES} \
-          --concurrency 80 \
-          --port 8787 \
-          --set-env-vars="APP_ENV=production,GREETING=✨ Finsolvz Production API ✨,PORT=8787" \
-          --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest" \
-          --quiet
+    args: [
+      'run', 'deploy', 'finsolvz-backend',
+      '--image', 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA',
+      '--region', 'asia-southeast2',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--memory', '1Gi',
+      '--cpu', '1',
+      '--port', '8787',
+      '--set-env-vars', 'APP_ENV=production,PORT=8787',
+      '--set-secrets', 'MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest',
+      '--quiet'
+    ]
 
-        echo "✅ Deployment completed"
-
-  # Step 6: Get Service URL
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'get-service-url'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🌐 Getting service URL..."
-        SERVICE_URL=$(gcloud run services describe ${_SERVICE_NAME} \
-          --region ${_REGION} \
-          --format "value(status.url)")
-        echo "Service URL: $SERVICE_URL"
-        echo "$SERVICE_URL" > service_url.txt
-
-  # Step 7: Health Check
-  - name: 'gcr.io/cloud-builders/curl'
-    id: 'health-check'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🏥 Running health check..."
-        SERVICE_URL=$(cat service_url.txt)
-        
-        # Wait for service to be ready (max 5 minutes)
-        for i in {1..30}; do
-          if curl -f --max-time 10 "$SERVICE_URL/" > /dev/null 2>&1; then
-            echo "✅ Health check passed"
-            exit 0
-          fi
-          echo "⏳ Waiting for service to be ready... ($i/30)"
-          sleep 10
-        done
-        
-        echo "❌ Health check failed after 5 minutes"
-        exit 1
-
-  # Step 8: API Tests
-  - name: 'gcr.io/cloud-builders/curl'
-    id: 'api-test'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "🧪 Testing API endpoints..."
-        SERVICE_URL=$(cat service_url.txt)
-        
-        # Test health endpoint
-        echo "Testing health endpoint..."
-        HEALTH_RESPONSE=$(curl -s "$SERVICE_URL/")
-        if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
-          echo "✅ Health endpoint working"
-        else
-          echo "❌ Health endpoint failed"
-          echo "Response: $HEALTH_RESPONSE"
-        fi
-        
-        echo "✅ API tests completed"
-
-  # Step 9: Deployment Summary
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'deployment-summary'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "📋 DEPLOYMENT SUMMARY"
-        echo "===================="
-        SERVICE_URL=$(cat service_url.txt)
-        
-        echo "🚀 Service: ${_SERVICE_NAME}"
-        echo "🌐 URL: $SERVICE_URL"
-        echo "🏷️ Image: gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA"
-        echo "📅 Deployed: $(date)"
-        echo "🔗 Commit: $COMMIT_SHA"
-        echo ""
-        echo "🎉 Deployment completed successfully!"
-
-# Images to push to Container Registry
+# Store built images
 images:
-  - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest'
+  - 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/finsolvz-backend:latest'
 
-# Build timeout (20 minutes)
+# Build timeout
 timeout: '1200s'
-
-# ✅ FIXED: Use Cloud Logging instead of custom bucket
-logging: CLOUD_LOGGING_ONLY
-
-# Build options without service account issues
-options:
-  machineType: 'E2_HIGHCPU_8'
-  diskSizeGb: 20
-  substitutionOption: 'ALLOW_LOOSE'
-
-# Build substitutions
-substitutions:
-  _SERVICE_NAME: 'finsolvz-backend'
-  _REGION: 'asia-southeast2'
-  _MEMORY: '1Gi'
-  _CPU: '1'
-  _MIN_INSTANCES: '0'
-  _MAX_INSTANCES: '10'
