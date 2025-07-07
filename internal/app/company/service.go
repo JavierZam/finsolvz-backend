@@ -34,19 +34,16 @@ func NewService(companyRepo domain.CompanyRepository, userRepo domain.UserReposi
 }
 
 func (s *service) CreateCompany(ctx context.Context, req CreateCompanyRequest) (*CompanyResponse, error) {
-	// Trim and validate name
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, ErrInvalidCompanyName
 	}
 
-	// Check if company already exists
 	existingCompany, err := s.companyRepo.GetByName(ctx, name)
 	if err == nil && existingCompany != nil {
 		return nil, ErrCompanyAlreadyExists
 	}
 
-	// Process user IDs
 	var userIDs []primitive.ObjectID
 	for _, userIDStr := range req.User {
 		userID, err := primitive.ObjectIDFromHex(userIDStr)
@@ -54,7 +51,6 @@ func (s *service) CreateCompany(ctx context.Context, req CreateCompanyRequest) (
 			return nil, ErrInvalidUserID
 		}
 
-		// Verify user exists
 		_, err = s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			return nil, ErrUserNotFound
@@ -63,7 +59,6 @@ func (s *service) CreateCompany(ctx context.Context, req CreateCompanyRequest) (
 		userIDs = append(userIDs, userID)
 	}
 
-	// Create company
 	company := &domain.Company{
 		Name:           name,
 		ProfilePicture: req.ProfilePicture,
@@ -74,10 +69,8 @@ func (s *service) CreateCompany(ctx context.Context, req CreateCompanyRequest) (
 		return nil, err
 	}
 
-	// Get populated user data for response
 	users, err := s.getUsersByIDs(ctx, userIDs)
 	if err != nil {
-		// If user fetching fails, return basic response without user details
 		response := ToCompanyResponse(company)
 		return &response, nil
 	}
@@ -94,10 +87,8 @@ func (s *service) GetCompanies(ctx context.Context) ([]*CompanyResponse, error) 
 
 	responses := make([]*CompanyResponse, len(companies))
 	for i, company := range companies {
-		// Get populated user data
 		users, err := s.getUsersByIDs(ctx, company.User)
 		if err != nil {
-			// If user fetching fails, return basic response
 			response := ToCompanyResponse(company)
 			responses[i] = &response
 		} else {
@@ -120,9 +111,8 @@ func (s *service) GetCompanyByID(ctx context.Context, id string) (*CompanyRespon
 		return nil, err
 	}
 
-	// Handle profile picture URL processing (legacy compatibility)
+	// Convert relative URLs to absolute URLs
 	if company.ProfilePicture != nil && !strings.HasPrefix(*company.ProfilePicture, "http") {
-		// Add server URL prefix for legacy compatibility
 		fullURL := "http://152.42.172.219:8787" + *company.ProfilePicture
 		company.ProfilePicture = &fullURL
 	}
@@ -139,7 +129,6 @@ func (s *service) GetCompanyByID(ctx context.Context, id string) (*CompanyRespon
 
 
 func (s *service) GetUserCompanies(ctx context.Context) ([]*CompanyResponse, error) {
-	// Get current user from context
 	userCtx, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		return nil, errors.New("USER_CONTEXT_MISSING", "User context not found", 401, nil, nil)
@@ -170,20 +159,18 @@ func (s *service) UpdateCompany(ctx context.Context, id string, req UpdateCompan
 		return nil, errors.New("INVALID_COMPANY_ID", "Invalid company ID format", 400, err, nil)
 	}
 
-	// Get existing company
 	company, err := s.companyRepo.GetByID(ctx, objectID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update name if provided
 	if req.Name != nil {
 		name := strings.TrimSpace(*req.Name)
 		if name == "" {
 			return nil, ErrInvalidCompanyName
 		}
 
-		// Check if new name conflicts with existing company (exclude current one)
+		// Check name uniqueness when being changed
 		if name != company.Name {
 			existingCompany, err := s.companyRepo.GetByName(ctx, name)
 			if err == nil && existingCompany != nil {
@@ -193,12 +180,10 @@ func (s *service) UpdateCompany(ctx context.Context, id string, req UpdateCompan
 		company.Name = name
 	}
 
-	// Update profile picture if provided
 	if req.ProfilePicture != nil {
 		company.ProfilePicture = req.ProfilePicture
 	}
 
-	// Process user IDs if provided
 	if req.User != nil {
 		var userIDs []primitive.ObjectID
 		for _, userIDStr := range req.User {
@@ -207,7 +192,6 @@ func (s *service) UpdateCompany(ctx context.Context, id string, req UpdateCompan
 				return nil, ErrInvalidUserID
 			}
 
-			// Verify user exists
 			_, err = s.userRepo.GetByID(ctx, userID)
 			if err != nil {
 				return nil, ErrUserNotFound
@@ -238,7 +222,6 @@ func (s *service) DeleteCompany(ctx context.Context, id string) (*CompanyRespons
 		return nil, errors.New("INVALID_COMPANY_ID", "Invalid company ID format", 400, err, nil)
 	}
 
-	// Get company data before deletion
 	company, err := s.companyRepo.GetByID(ctx, objectID)
 	if err != nil {
 		return nil, err
@@ -252,7 +235,7 @@ func (s *service) DeleteCompany(ctx context.Context, id string) (*CompanyRespons
 	return &response, nil
 }
 
-// Helper function to get users by IDs
+// getUsersByIDs retrieves users by their IDs, skipping any that are not found
 func (s *service) getUsersByIDs(ctx context.Context, userIDs []primitive.ObjectID) ([]*domain.User, error) {
 	users := make([]*domain.User, 0, len(userIDs))
 	for _, userID := range userIDs {
@@ -260,7 +243,6 @@ func (s *service) getUsersByIDs(ctx context.Context, userIDs []primitive.ObjectI
 		if err == nil {
 			users = append(users, user)
 		}
-		// Continue even if some users are not found (soft error handling)
 	}
 	return users, nil
 }
@@ -271,27 +253,24 @@ func (s *service) GetCompanyByName(ctx context.Context, name string) (*CompanyRe
 		return nil, ErrInvalidCompanyName
 	}
 
-	// ✅ ENHANCED: Try exact match first, then flexible search
+	// Try exact match first, then flexible search
 	company, err := s.companyRepo.GetByName(ctx, name)
 	if err == nil {
-		// Found exact match
 		return s.buildCompanyResponse(ctx, company)
 	}
 
-	// If exact match failed, try flexible search
+	// Fallback to flexible search if exact match fails
 	companies, searchErr := s.companyRepo.SearchByName(ctx, name)
 	if searchErr != nil || len(companies) == 0 {
-		// Both exact and flexible search failed
 		return nil, ErrCompanyNotFound
 	}
 
-	// Return first result from flexible search (most relevant)
 	return s.buildCompanyResponse(ctx, companies[0])
 }
 
-// Helper function to build company response with populated users
+// buildCompanyResponse creates a company response with populated users and processed URLs
 func (s *service) buildCompanyResponse(ctx context.Context, company *domain.Company) (*CompanyResponse, error) {
-	// Handle profile picture URL processing (legacy compatibility)
+	// Convert relative URLs to absolute URLs
 	if company.ProfilePicture != nil && !strings.HasPrefix(*company.ProfilePicture, "http") {
 		fullURL := "http://152.42.172.219:8787" + *company.ProfilePicture
 		company.ProfilePicture = &fullURL

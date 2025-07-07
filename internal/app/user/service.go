@@ -17,7 +17,7 @@ type Service interface {
 	GetUserByID(ctx context.Context, id string) (*UserResponse, error)
 	GetLoginUser(ctx context.Context) (*UserResponse, error)
 	UpdateUser(ctx context.Context, id string, req UpdateUserRequest) (*UserResponse, error)
-	DeleteUser(ctx context.Context, id string) (*UserResponse, error)  // ✅ Updated return type
+	DeleteUser(ctx context.Context, id string) (*UserResponse, error)
 	UpdateRole(ctx context.Context, req UpdateRoleRequest) (*UserResponse, error)
 	ChangePassword(ctx context.Context, req ChangePasswordRequest) error
 }
@@ -33,19 +33,16 @@ func NewService(userRepo domain.UserRepository) Service {
 }
 
 func (s *service) CreateUser(ctx context.Context, req CreateUserRequest) (*UserResponse, error) {
-	// Check if user already exists
 	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
 		return nil, errors.New("USER_ALREADY_EXISTS", "Email already registered", 409, nil, nil)
 	}
 
-	// Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
 	user := &domain.User{
 		Name:     req.Name,
 		Email:    req.Email,
@@ -93,7 +90,6 @@ func (s *service) GetUserByID(ctx context.Context, id string) (*UserResponse, er
 }
 
 func (s *service) GetLoginUser(ctx context.Context) (*UserResponse, error) {
-	// Get user from context
 	userCtx, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		return nil, errors.New("USER_CONTEXT_MISSING", "User context not found", 401, nil, nil)
@@ -119,13 +115,12 @@ func (s *service) UpdateUser(ctx context.Context, id string, req UpdateUserReque
 		return nil, errors.New("INVALID_USER_ID", "Invalid user ID format", 400, err, nil)
 	}
 
-	// Get existing user
 	user, err := s.userRepo.GetByID(ctx, objectID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if email is being changed and already exists
+	// Check email uniqueness when being changed
 	if req.Email != nil && *req.Email != user.Email {
 		existingUser, err := s.userRepo.GetByEmail(ctx, *req.Email)
 		if err == nil && existingUser != nil {
@@ -133,7 +128,6 @@ func (s *service) UpdateUser(ctx context.Context, id string, req UpdateUserReque
 		}
 	}
 
-	// Update fields
 	if req.Name != nil {
 		user.Name = *req.Name
 	}
@@ -200,12 +194,10 @@ func (s *service) UpdateRole(ctx context.Context, req UpdateRoleRequest) (*UserR
 }
 
 func (s *service) ChangePassword(ctx context.Context, req ChangePasswordRequest) error {
-	// Validate passwords match
 	if req.NewPassword != req.ConfirmPassword {
 		return ErrPasswordMismatch
 	}
 
-	// Get user from context
 	userCtx, ok := middleware.GetUserFromContext(ctx)
 	if !ok {
 		return errors.New("USER_CONTEXT_MISSING", "User context not found", 401, nil, nil)
@@ -221,7 +213,6 @@ func (s *service) ChangePassword(ctx context.Context, req ChangePasswordRequest)
 		return err
 	}
 
-	// Hash new password
 	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
 		return err

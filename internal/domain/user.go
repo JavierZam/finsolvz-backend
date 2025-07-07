@@ -7,17 +7,15 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// User entity - sesuai dengan data di MongoDB
 type User struct {
 	ID        primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	Name      string               `bson:"name" json:"name"`
 	Email     string               `bson:"email" json:"email"`
-	Password  string               `bson:"password" json:"-"` // Never expose in JSON
+	Password  string               `bson:"password" json:"-"`
 	Role      UserRole             `bson:"role" json:"role"`
 	Company   []primitive.ObjectID `bson:"company" json:"company"`
 	CreatedAt time.Time            `bson:"createdAt" json:"createdAt"`
 	UpdatedAt time.Time            `bson:"updatedAt" json:"updatedAt"`
-	// Fields untuk forgot password (optional, bisa ditambah nanti)
 	ResetPasswordToken   *string    `bson:"resetPasswordToken,omitempty" json:"-"`
 	ResetPasswordExpires *time.Time `bson:"resetPasswordExpires,omitempty" json:"-"`
 }
@@ -38,7 +36,6 @@ func (r UserRole) IsValid() bool {
 	return false
 }
 
-// UserRepository interface
 type UserRepository interface {
 	Create(ctx context.Context, user *User) error
 	GetByID(ctx context.Context, id primitive.ObjectID) (*User, error)

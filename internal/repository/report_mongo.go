@@ -35,17 +35,17 @@ func (r *reportMongoRepository) Create(ctx context.Context, report *domain.Repor
 	return nil
 }
 
-// ✅ ENHANCED: Helper function untuk membuat aggregation pipeline dengan year type handling
+// getPopulationPipeline creates an aggregation pipeline with year type handling for legacy data compatibility.
 func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 	return []bson.M{
-		// ✅ FIX: Handle mixed year types (string/integer) dari legacy data
+		// Handle mixed year types (string/integer) from legacy data
 		{
 			"$addFields": bson.M{
 				"year": bson.M{
 					"$cond": bson.M{
 						"if":   bson.M{"$eq": []interface{}{bson.M{"$type": "$year"}, "int"}},
-						"then": bson.M{"$toString": "$year"}, // Convert integer to string
-						"else": "$year",                      // Keep as string if already string
+						"then": bson.M{"$toString": "$year"},
+						"else": "$year",
 					},
 				},
 			},
@@ -104,12 +104,12 @@ func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 				"as":           "userAccess",
 			},
 		},
-		// ✅ EXACT legacy format: Remove password field from populated users
+		// Project final structure excluding sensitive fields
 		{
 			"$project": bson.M{
 				"_id":        1,
 				"reportName": 1,
-				"year":       1, // Now guaranteed to be string
+				"year":       1,
 				"currency":   1,
 				"reportData": 1,
 				"createdAt":  1,
@@ -301,7 +301,7 @@ func (r *reportMongoRepository) Update(ctx context.Context, id primitive.ObjectI
 		"$set": bson.M{
 			"reportName": report.ReportName,
 			"reportType": report.ReportType,
-			"year":       report.Year, // Ensure it's saved as string
+			"year":       report.Year,
 			"company":    report.Company,
 			"currency":   report.Currency,
 			"createdBy":  report.CreatedBy,
@@ -320,7 +320,6 @@ func (r *reportMongoRepository) Update(ctx context.Context, id primitive.ObjectI
 		return nil, errors.New("REPORT_NOT_FOUND", "Report not found", 404, nil, nil)
 	}
 
-	// Return updated report with populated data
 	return r.GetByID(ctx, id)
 }
 

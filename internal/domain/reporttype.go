@@ -6,13 +6,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// ReportType entity - sesuai dengan data di MongoDB (exact legacy match)
 type ReportType struct {
 	ID   primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Name string             `bson:"name" json:"name"`
 }
 
-// ReportTypeRepository interface
 type ReportTypeRepository interface {
 	Create(ctx context.Context, reportType *ReportType) error
 	GetByID(ctx context.Context, id primitive.ObjectID) (*ReportType, error)

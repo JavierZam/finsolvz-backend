@@ -7,17 +7,15 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Company entity - sesuai dengan legacy MongoDB schema
 type Company struct {
 	ID             primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	Name           string               `bson:"name" json:"name"`
-	ProfilePicture *string              `bson:"profilePicture,omitempty" json:"profilePicture"` // Simple string URL
+	ProfilePicture *string              `bson:"profilePicture,omitempty" json:"profilePicture"`
 	User           []primitive.ObjectID `bson:"user" json:"user"`
 	CreatedAt      time.Time            `bson:"createdAt" json:"createdAt"`
 	UpdatedAt      time.Time            `bson:"updatedAt" json:"updatedAt"`
 }
 
-// CompanyRepository interface
 type CompanyRepository interface {
 	Create(ctx context.Context, company *Company) error
 	GetByID(ctx context.Context, id primitive.ObjectID) (*Company, error)

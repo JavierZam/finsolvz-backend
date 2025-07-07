@@ -7,7 +7,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Report entity
 type Report struct {
 	ID         primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	ReportName string               `bson:"reportName" json:"reportName"`
@@ -17,7 +16,7 @@ type Report struct {
 	Currency   *string              `bson:"currency,omitempty" json:"currency"`
 	CreatedBy  primitive.ObjectID   `bson:"createdBy" json:"createdBy"`
 	UserAccess []primitive.ObjectID `bson:"userAccess" json:"userAccess"`
-	ReportData interface{}          `bson:"reportData" json:"reportData"` // Mixed type like legacy
+	ReportData interface{}          `bson:"reportData" json:"reportData"`
 	CreatedAt  time.Time            `bson:"createdAt" json:"createdAt"`
 	UpdatedAt  time.Time            `bson:"updatedAt" json:"updatedAt"`
 }
@@ -36,7 +35,6 @@ type PopulatedReport struct {
 	UpdatedAt  time.Time          `bson:"updatedAt" json:"updatedAt"`
 }
 
-// ReportRepository interface
 type ReportRepository interface {
 	Create(ctx context.Context, report *Report) error
 	GetByID(ctx context.Context, id primitive.ObjectID) (*PopulatedReport, error)

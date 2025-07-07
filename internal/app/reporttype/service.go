@@ -30,19 +30,16 @@ func NewService(reportTypeRepo domain.ReportTypeRepository) Service {
 }
 
 func (s *service) CreateReportType(ctx context.Context, req CreateReportTypeRequest) (*ReportTypeResponse, error) {
-	// Trim and validate name
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, ErrInvalidReportTypeName
 	}
 
-	// Check if report type already exists
 	existingReportType, err := s.reportTypeRepo.GetByName(ctx, name)
 	if err == nil && existingReportType != nil {
 		return nil, ErrReportTypeAlreadyExists
 	}
 
-	// Create report type
 	reportType := &domain.ReportType{
 		Name: name,
 	}
@@ -106,19 +103,17 @@ func (s *service) UpdateReportType(ctx context.Context, id string, req UpdateRep
 		return nil, errors.New("INVALID_REPORT_TYPE_ID", "Invalid report type ID format", 400, err, nil)
 	}
 
-	// Trim and validate name
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return nil, ErrInvalidReportTypeName
 	}
 
-	// Get existing report type
 	reportType, err := s.reportTypeRepo.GetByID(ctx, objectID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check if new name conflicts with existing report type (exclude current one)
+	// Check name uniqueness when being changed
 	if name != reportType.Name {
 		existingReportType, err := s.reportTypeRepo.GetByName(ctx, name)
 		if err == nil && existingReportType != nil {
@@ -126,7 +121,6 @@ func (s *service) UpdateReportType(ctx context.Context, id string, req UpdateRep
 		}
 	}
 
-	// Update report type
 	reportType.Name = name
 
 	if err := s.reportTypeRepo.Update(ctx, objectID, reportType); err != nil {
@@ -143,7 +137,6 @@ func (s *service) DeleteReportType(ctx context.Context, id string) error {
 		return errors.New("INVALID_REPORT_TYPE_ID", "Invalid report type ID format", 400, err, nil)
 	}
 
-	// Check if report type exists before deletion
 	_, err = s.reportTypeRepo.GetByID(ctx, objectID)
 	if err != nil {
 		return err

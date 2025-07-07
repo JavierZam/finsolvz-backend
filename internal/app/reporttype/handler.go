@@ -21,20 +21,15 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
-// RegisterRoutes registers report type routes - EXACT legacy compatibility
+// RegisterRoutes registers report type routes
 func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Handler) http.Handler) {
-	// Protected routes - require authentication
 	protected := router.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware)
 
-	// Report Type routes - exact legacy routes
 	protected.HandleFunc("/api/reportTypes", h.GetReportTypes).Methods("GET")
 	protected.HandleFunc("/api/reportTypes", h.CreateReportType).Methods("POST")
 	protected.HandleFunc("/api/reportTypes/{id}", h.UpdateReportType).Methods("PUT")
 	protected.HandleFunc("/api/reportTypes/{id}", h.DeleteReportType).Methods("DELETE")
-	
-	// ⚠️ Legacy has route conflict: both /:id and /:name use same pattern
-	// We handle this by checking if param is ObjectID (24 hex chars) vs name
 	protected.HandleFunc("/api/reportTypes/{idOrName}", h.GetReportTypeByIDOrName).Methods("GET")
 }
 
@@ -45,11 +40,10 @@ func (h *Handler) GetReportTypes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: return array directly  
 	utils.RespondJSON(w, http.StatusOK, reportTypes)
 }
 
-// ✅ Handle legacy route conflict: /:id and /:name in same pattern
+// GetReportTypeByIDOrName retrieves a report type by ID or name
 func (h *Handler) GetReportTypeByIDOrName(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idOrName := vars["idOrName"]
@@ -57,7 +51,7 @@ func (h *Handler) GetReportTypeByIDOrName(w http.ResponseWriter, r *http.Request
 	var reportType *ReportTypeResponse
 	var err error
 
-	// Check if it's ObjectID format (24 hex characters)
+	// Check if parameter is ObjectID format (24 hex characters) or name
 	if len(idOrName) == 24 {
 		reportType, err = h.service.GetReportTypeByID(r.Context(), idOrName)
 	} else {
@@ -69,7 +63,6 @@ func (h *Handler) GetReportTypeByIDOrName(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// ✅ EXACT legacy format: return object directly
 	utils.RespondJSON(w, http.StatusOK, reportType)
 }
 
@@ -91,7 +84,6 @@ func (h *Handler) CreateReportType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusCreated, map[string]interface{}{
 		"message":    "Report type added successfully",
 		"reportType": reportType,
@@ -119,7 +111,6 @@ func (h *Handler) UpdateReportType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 		"message":    "Report Type updated successfully", 
 		"reportType": reportType,
@@ -136,6 +127,5 @@ func (h *Handler) DeleteReportType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: 204 No Content
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -35,7 +35,6 @@ func NewService(reportRepo domain.ReportRepository) Service {
 }
 
 func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*ReportResponse, error) {
-	// ✅ Validate and convert ObjectIDs
 	reportTypeID, err := primitive.ObjectIDFromHex(req.ReportType)
 	if err != nil {
 		return nil, errors.New("INVALID_REPORT_TYPE_ID", "Invalid report type ID format", 400, err, nil)
@@ -46,13 +45,11 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 		return nil, errors.New("INVALID_COMPANY_ID", "Invalid company ID format", 400, err, nil)
 	}
 
-	// ✅ FIXED: Handle "createBy" field from request
 	createdByID, err := primitive.ObjectIDFromHex(req.CreateBy)
 	if err != nil {
 		return nil, errors.New("INVALID_USER_ID", "Invalid created by user ID format", 400, err, nil)
 	}
 
-	// Process user access IDs
 	var userAccessIDs []primitive.ObjectID
 	for _, userIDStr := range req.UserAccess {
 		userID, err := primitive.ObjectIDFromHex(userIDStr)
@@ -62,19 +59,18 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 		userAccessIDs = append(userAccessIDs, userID)
 	}
 
-	// ✅ Store report data as-is (exactly like legacy - no AI processing)
+	// Default to empty array if no report data provided
 	var reportData interface{}
 	if req.ReportData != nil {
 		reportData = req.ReportData
 	} else {
-		reportData = []interface{}{} // Default empty array like legacy
+		reportData = []interface{}{}
 	}
 
-	// Create report entity
 	report := &domain.Report{
 		ReportName: strings.TrimSpace(req.ReportName),
 		ReportType: reportTypeID,
-		Year:       strings.TrimSpace(req.Year), // ✅ Ensure it's stored as string
+		Year:       strings.TrimSpace(req.Year),
 		Company:    companyID,
 		Currency:   req.Currency,
 		CreatedBy:  createdByID,
@@ -82,12 +78,10 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 		ReportData: reportData,
 	}
 
-	// Save to database
 	if err := s.reportRepo.Create(ctx, report); err != nil {
 		return nil, err
 	}
 
-	// Get populated report for response
 	populatedReport, err := s.reportRepo.GetByID(ctx, report.ID)
 	if err != nil {
 		return nil, err
@@ -102,13 +96,12 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 		return nil, errors.New("INVALID_REPORT_ID", "Invalid report ID format", 400, err, nil)
 	}
 
-	// Get existing report
 	existingReport, err := s.reportRepo.GetByID(ctx, reportID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Prepare update data
+	// Prepare update data from existing report
 	updateReport := &domain.Report{
 		ID:         existingReport.ID,
 		ReportName: existingReport.ReportName,
@@ -122,14 +115,13 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 		CreatedAt:  existingReport.CreatedAt,
 	}
 
-	// Convert user access back to ObjectIDs
+	// Convert populated user access back to ObjectIDs
 	if existingReport.UserAccess != nil {
 		for _, user := range existingReport.UserAccess {
 			updateReport.UserAccess = append(updateReport.UserAccess, user.ID)
 		}
 	}
 
-	// Update fields if provided
 	if req.ReportName != nil {
 		updateReport.ReportName = strings.TrimSpace(*req.ReportName)
 	}
@@ -143,7 +135,7 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 	}
 
 	if req.Year != nil {
-		updateReport.Year = strings.TrimSpace(*req.Year) // ✅ Ensure string
+		updateReport.Year = strings.TrimSpace(*req.Year)
 	}
 
 	if req.Company != nil {
@@ -171,11 +163,9 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 	}
 
 	if req.ReportData != nil {
-		// ✅ Store new report data as-is (exactly like legacy - no AI processing)
 		updateReport.ReportData = req.ReportData
 	}
 
-	// Update in database
 	updatedReport, err := s.reportRepo.Update(ctx, reportID, updateReport)
 	if err != nil {
 		return nil, err
@@ -245,6 +235,7 @@ func (s *service) GetReportsByCompany(ctx context.Context, companyID string) ([]
 }
 
 func (s *service) GetReportsByCompanies(ctx context.Context, req GetReportsByCompaniesRequest) ([]*ReportResponse, error) {
+	// Business rule: comparison requires at least 2 companies
 	if len(req.CompanyIds) < 2 {
 		return nil, errors.New("INSUFFICIENT_COMPANIES", "Need 2 or more companies", 400, nil, nil)
 	}

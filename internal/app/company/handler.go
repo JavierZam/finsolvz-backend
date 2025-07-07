@@ -28,7 +28,6 @@ func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Ha
 	protected := router.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware)
 
-	// Company routes
 	protected.HandleFunc("/api/company", h.GetCompanies).Methods("GET")
 	protected.HandleFunc("/api/company", h.CreateCompany).Methods("POST")
 	protected.HandleFunc("/api/user/companies", h.GetUserCompanies).Methods("GET")
@@ -48,7 +47,6 @@ func (h *Handler) GetCompanies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: return array directly
 	utils.RespondJSON(w, http.StatusOK, companies)
 }
 
@@ -70,7 +68,6 @@ func (h *Handler) CreateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusCreated, map[string]interface{}{
 		"message": "Company created successfully",
 		"company": company,
@@ -108,7 +105,6 @@ func (h *Handler) UpdateCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 		"message": "Success",
 		"company": company,
@@ -125,7 +121,6 @@ func (h *Handler) DeleteCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 		"message": "Company deleted successfully",
 		"company": deletedCompany,
@@ -139,7 +134,7 @@ func (h *Handler) GetCompanyByIDOrName(w http.ResponseWriter, r *http.Request) {
     var company *CompanyResponse
     var err error
 
-    // Logic detection: 24 hex chars = ObjectID, else = Name
+    // Check if parameter is ObjectID format (24 hex chars) or company name
     if len(idOrName) == 24 && isHexString(idOrName) {
         company, err = h.service.GetCompanyByID(r.Context(), idOrName)
     } else {
@@ -154,6 +149,7 @@ func (h *Handler) GetCompanyByIDOrName(w http.ResponseWriter, r *http.Request) {
     utils.RespondJSON(w, http.StatusOK, company)
 }
 
+// isHexString checks if a string contains only hexadecimal characters
 func isHexString(s string) bool {
     for _, char := range s {
         if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {

@@ -21,13 +21,11 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
-// ✅ FIXED: RegisterRoutes - No role restrictions like legacy Node.js
+// RegisterRoutes registers report routes
 func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Handler) http.Handler) {
-	// ✅ All routes only require authentication, no role restrictions (like legacy)
 	protected := router.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware)
 
-	// Report routes - exact legacy routes with same behavior
 	protected.HandleFunc("/api/reports", h.CreateReport).Methods("POST")
 	protected.HandleFunc("/api/reports/{id}", h.UpdateReport).Methods("PUT")
 	protected.HandleFunc("/api/reports/{id}", h.DeleteReport).Methods("DELETE")
@@ -61,7 +59,6 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return report object directly with status 201
 	utils.RespondJSON(w, http.StatusCreated, report)
 }
 
@@ -86,7 +83,6 @@ func (h *Handler) UpdateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return updated report object directly
 	utils.RespondJSON(w, http.StatusOK, report)
 }
 
@@ -100,7 +96,6 @@ func (h *Handler) DeleteReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return success message
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 		"message": "Report deleted successfully",
 	})
@@ -113,7 +108,6 @@ func (h *Handler) GetReports(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return array of reports directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, reports)
 }
 
@@ -127,7 +121,6 @@ func (h *Handler) GetReportByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return report object directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, report)
 }
 
@@ -141,7 +134,6 @@ func (h *Handler) GetReportByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return report object directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, report)
 }
 
@@ -155,7 +147,6 @@ func (h *Handler) GetReportsByCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: Return array of reports directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, reports)
 }
 
@@ -177,7 +168,6 @@ func (h *Handler) GetReportsByCompanies(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// ✅ EXACT legacy format: Return array of reports directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, reports)
 }
 
@@ -191,7 +181,6 @@ func (h *Handler) GetReportsByReportType(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// ✅ EXACT legacy format: Return array of reports directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, reports)
 }
 
@@ -205,7 +194,6 @@ func (h *Handler) GetReportsByUserAccess(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// ✅ EXACT legacy format: Return array of reports directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, reports)
 }
 
@@ -219,6 +207,5 @@ func (h *Handler) GetReportsByCreatedBy(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// ✅ EXACT legacy format: Return array of reports directly (status 200)
 	utils.RespondJSON(w, http.StatusOK, reports)
 }

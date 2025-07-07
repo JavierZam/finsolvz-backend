@@ -23,7 +23,6 @@ func NewHandler(service Service) *Handler {
 
 // RegisterRoutes registers auth routes
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	// Public routes (no authentication required)
 	router.HandleFunc("/api/login", h.Login).Methods("POST")
 	router.HandleFunc("/api/forgot-password", h.ForgotPassword).Methods("POST")
 	router.HandleFunc("/api/reset-password", h.ResetPassword).Methods("POST")

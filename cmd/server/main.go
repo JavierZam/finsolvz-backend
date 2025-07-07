@@ -25,26 +25,22 @@ import (
 )
 
 func main() {
-	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Warnf(context.Background(), "No .env file found: %v", err)
 	}
 
 	ctx := context.Background()
 
-	// Connect to MongoDB
 	db, err := config.ConnectMongoDB(ctx)
 	if err != nil {
 		log.Fatalf(ctx, "Failed to connect to database: %v", err)
 	}
 
-	// Initialize repositories
 	userRepo := repository.NewUserMongoRepository(db)
 	reportTypeRepo := repository.NewReportTypeMongoRepository(db)
 	companyRepo := repository.NewCompanyMongoRepository(db)
 	reportRepo := repository.NewReportMongoRepository(db)
 
-	// Initialize services
 	emailService := utils.NewEmailService()
 	authService := auth.NewService(userRepo, emailService)
 	userService := user.NewService(userRepo)
@@ -52,21 +48,17 @@ func main() {
 	companyService := company.NewService(companyRepo, userRepo)
 	reportService := report.NewService(reportRepo)
 
-	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
 	userHandler := user.NewHandler(userService, authService)
 	reportTypeHandler := reporttype.NewHandler(reportTypeService)
 	companyHandler := company.NewHandler(companyService)
 	reportHandler := report.NewHandler(reportService)
 
-	// Setup router
 	router := mux.NewRouter()
 
-	// Apply global middleware
 	router.Use(middleware.LoggingMiddleware)
 	router.Use(middleware.RecoveryMiddleware)
 
-	// CORS configuration
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
@@ -74,14 +66,12 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	// Register routes
 	authHandler.RegisterRoutes(router)
 	userHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 	reportTypeHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 	companyHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 	reportHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 
-	// Health check endpoint
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		greeting := os.Getenv("GREETING")
 		if greeting == "" {
@@ -93,9 +83,7 @@ func main() {
 		})
 	}).Methods("GET")
 
-	// ✅ ADD: Debug endpoint to check file existence
 	router.HandleFunc("/debug/files", func(w http.ResponseWriter, r *http.Request) {
-		// Check if openapi.yaml exists
 		if _, err := os.Stat("./api/openapi.yaml"); err != nil {
 			utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 				"openapi_yaml_exists": false,
@@ -116,7 +104,6 @@ func main() {
 		}
 	}).Methods("GET")
 
-	// ✅ ADD: Swagger UI endpoints
 	router.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
 		swaggerHTML := `<!DOCTYPE html>
 <html>
@@ -143,9 +130,7 @@ func main() {
 		w.Write([]byte(swaggerHTML))
 	}).Methods("GET")
 
-	// Serve OpenAPI spec
 	router.HandleFunc("/api/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
-		// ✅ ENHANCED: Better file serving with proper headers
 		filePath := "./api/openapi.yaml"
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			http.Error(w, "OpenAPI spec not found", http.StatusNotFound)
@@ -157,10 +142,8 @@ func main() {
 		http.ServeFile(w, r, filePath)
 	}).Methods("GET")
 
-	// Apply CORS middleware
 	handler := c.Handler(router)
 
-	// Server configuration
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8787"
@@ -174,22 +157,18 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in a goroutine
 	go func() {
-		log.Infof(ctx, "🚀🚀 Server running on http://localhost:%s 🚀🚀", port)
-		log.Infof(ctx, "📊 Report Module ready - Complete API migration!")
+		log.Infof(ctx, "Server running on http://localhost:%s", port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf(ctx, "Server failed to start: %v", err)
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Info(ctx, "Shutting down server...")
 
-	// Graceful shutdown
 	ctxShutdown, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

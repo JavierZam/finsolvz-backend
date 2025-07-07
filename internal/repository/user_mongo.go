@@ -52,7 +52,6 @@ func (r *userMongoRepository) GetByID(ctx context.Context, id primitive.ObjectID
 
 func (r *userMongoRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
-	// Include password field for authentication
 	err := r.collection.FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -63,9 +62,9 @@ func (r *userMongoRepository) GetByEmail(ctx context.Context, email string) (*do
 	return &user, nil
 }
 
-// ✅ ENHANCED: GetAll method with comprehensive company field handling
+// GetAll retrieves all users with normalized company field handling for legacy data compatibility.
 func (r *userMongoRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
-	// Enhanced aggregation pipeline to handle ALL legacy data scenarios
+	// Aggregation pipeline to normalize company field formats
 	pipeline := []bson.M{
 		{
 			"$project": bson.M{
@@ -75,41 +74,33 @@ func (r *userMongoRepository) GetAll(ctx context.Context) ([]*domain.User, error
 				"role":      1,
 				"createdAt": 1,
 				"updatedAt": 1,
-				// Enhanced company field handling for ALL scenarios
 				"company": bson.M{
 					"$switch": bson.M{
 						"branches": []bson.M{
 							{
-								// Case 1: Field doesn't exist
 								"case": bson.M{"$eq": []interface{}{bson.M{"$type": "$company"}, "missing"}},
-								"then": []primitive.ObjectID{}, // Return empty array
+								"then": []primitive.ObjectID{},
 							},
 							{
-								// Case 2: Field is null
 								"case": bson.M{"$eq": []interface{}{"$company", nil}},
-								"then": []primitive.ObjectID{}, // Return empty array
+								"then": []primitive.ObjectID{},
 							},
 							{
-								// Case 3: Field is string (legacy format)
 								"case": bson.M{"$eq": []interface{}{bson.M{"$type": "$company"}, "string"}},
-								"then": []primitive.ObjectID{}, // Convert string to empty array for now
+								"then": []primitive.ObjectID{},
 							},
 							{
-								// Case 4: Field is proper ObjectId array
 								"case": bson.M{"$isArray": "$company"},
-								"then": "$company", // Use as-is
+								"then": "$company",
 							},
 							{
-								// Case 5: Field is single ObjectId
 								"case": bson.M{"$eq": []interface{}{bson.M{"$type": "$company"}, "objectId"}},
-								"then": []interface{}{"$company"}, // Wrap in array
+								"then": []interface{}{"$company"},
 							},
 						},
-						"default": []primitive.ObjectID{}, // Fallback to empty array
+						"default": []primitive.ObjectID{},
 					},
 				},
-				// Remove unwanted fields from legacy data
-				// Don't include: password, __v, resetPasswordToken, etc.
 			},
 		},
 	}
@@ -141,7 +132,6 @@ func (r *userMongoRepository) Update(ctx context.Context, id primitive.ObjectID,
 		},
 	}
 
-	// Only update password if it's provided
 	if user.Password != "" {
 		update["$set"].(bson.M)["password"] = user.Password
 	}

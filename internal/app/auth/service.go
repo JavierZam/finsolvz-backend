@@ -1,4 +1,3 @@
-// internal/app/auth/service.go - VERIFY THIS FILE HAS CORRECT INTERFACE
 package auth
 
 import (
@@ -12,7 +11,6 @@ import (
 	"finsolvz-backend/internal/utils/errors"
 )
 
-// ✅ Make sure this interface uses the correct types from model.go
 type Service interface {
 	Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error)
 	Login(ctx context.Context, req LoginRequest) (*AuthResponse, error)
@@ -33,25 +31,22 @@ func NewService(userRepo domain.UserRepository, emailService utils.EmailService)
 }
 
 func (s *service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
-	// Check if user already exists
 	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
 		return nil, ErrUserAlreadyExists
 	}
 
-	// Hash password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create user
 	user := &domain.User{
 		Name:      req.Name,
 		Email:     req.Email,
 		Password:  hashedPassword,
 		Role:      domain.UserRole(req.Role),
-		Company:   []primitive.ObjectID{}, // Empty array like in your data
+		Company:   []primitive.ObjectID{},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -60,7 +55,6 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 		return nil, err
 	}
 
-	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID.Hex(), string(user.Role))
 	if err != nil {
 		return nil, err
@@ -73,18 +67,15 @@ func (s *service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 }
 
 func (s *service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
-	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}
 
-	// Check password
 	if err := utils.ComparePassword(user.Password, req.Password); err != nil {
 		return nil, ErrInvalidCredentials
 	}
 
-	// Generate JWT token
 	token, err := utils.GenerateJWT(user.ID.Hex(), string(user.Role))
 	if err != nil {
 		return nil, err
@@ -97,31 +88,26 @@ func (s *service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 }
 
 func (s *service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest) error {
-	// Get user by email
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return errors.New("USER_NOT_FOUND", "User not found", 404, err, nil)
 	}
 
-	// Generate new random password
 	newPassword, err := utils.GenerateRandomPassword()
 	if err != nil {
 		return err
 	}
 
-	// Hash the new password
 	hashedPassword, err := utils.HashPassword(newPassword)
 	if err != nil {
 		return err
 	}
 
-	// Update user password
 	user.Password = hashedPassword
 	if err := s.userRepo.Update(ctx, user.ID, user); err != nil {
 		return err
 	}
 
-	// Send email with new password
 	if err := s.emailService.SendForgotPasswordEmail(user.Email, user.Name, newPassword); err != nil {
 		return err
 	}
@@ -130,19 +116,17 @@ func (s *service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest)
 }
 
 func (s *service) ResetPassword(ctx context.Context, req ResetPasswordRequest) error {
-	// Get user by reset token
 	user, err := s.userRepo.GetByResetToken(ctx, req.Token)
 	if err != nil {
 		return err
 	}
 
-	// Hash new password
 	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
 		return err
 	}
 
-	// Update user password and clear reset token
+	// Clear reset token after successful password change
 	user.Password = hashedPassword
 	user.ResetPasswordToken = nil
 	user.ResetPasswordExpires = nil
