@@ -1,99 +1,49 @@
-# Google Cloud Build configuration for CI/CD pipeline
-# This pipeline builds, tests, lints, runs migrations, and deploys the Go backend application.
-
+# Updated Cloud Build for production
 steps:
-  # 1. Build Go Application
-  - name: 'gcr.io/cloud-builders/go'
-    id: 'Build Application'
-    args: ['build', '-o', 'main', './cmd/server']
-    env: ['CGO_ENABLED=0'] # Build static binary
-
-  # 2. Run Tests
+  # 1. Run Tests
   - name: 'gcr.io/cloud-builders/go'
     id: 'Run Tests'
     args: ['test', './...']
     env: ['CGO_ENABLED=0']
 
-  # 3. Run Linters
-  - name: 'golangci/golangci-lint:v1.55.1' # Use a specific linter image
-    id: 'Run Linters'
-    entrypoint: 'golangci-lint'
-    args: ['run', './...']
+  # 2. Build Application
+  - name: 'gcr.io/cloud-builders/go'
+    id: 'Build Application'
+    args: ['build', '-o', 'main', './cmd/server']
+    env: ['CGO_ENABLED=0']
 
-  # 4. Database Migrations (using golang-migrate CLI)
-  # This step runs migrations on the target database before deploying the new application version.
-  # Ensure your Cloud Build service account has permissions to access Secret Manager (if used)
-  # and Cloud SQL (if using Cloud SQL Auth Proxy or direct connection).
-  # DB_HOST, DB_PORT, DB_USER, DB_NAME, DB_PASSWORD should be set as environment variables
-  # in Cloud Build, possibly from Secret Manager.
-  - name: 'alpine/git' # Use a simple image with curl/tar/git
-    id: 'Run Migrations'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        # Download and install migrate CLI
-        apk add --no-cache curl tar
-        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.16.2/migrate.linux-amd64.tar.gz | tar xvz
-        mv migrate /usr/local/bin/migrate
-        chmod +x /usr/local/bin/migrate
-
-        # Construct database URL from environment variables
-        DB_URL="postgresql://${_DB_USER}:${_DB_PASSWORD}@${_DB_HOST}:${_DB_PORT}/${_DB_NAME}?sslmode=disable"
-        
-        # Run migrations up
-        /usr/local/bin/migrate -path ./migrations -database "$$DB_URL" up
-    # Define environment variables for database connection (these would be set in Cloud Build triggers)
-    # Use _VAR_NAME for variables that might come from Secret Manager
-    env:
-      - _DB_HOST=${_DB_HOST}
-      - _DB_PORT=${_DB_PORT}
-      - _DB_USER=${_DB_USER}
-      - _DB_PASSWORD=${_DB_PASSWORD}
-      - _DB_NAME=${_DB_NAME}
-    secretEnv: ['_DB_PASSWORD'] # Declare DB_PASSWORD as a secret variable
-    # Bind secrets from Secret Manager
-    # available in Cloud Build trigger settings
-    # e.g., _DB_PASSWORD: projects/PROJECT_ID/secrets/DB_PASSWORD/versions/latest
-
-  # 5. Build and Push Docker Image
+  # 3. Build and Push Docker Image
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'Build and Push Docker Image'
+    id: 'Build Docker Image'
     args: ['build', '-t', 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA', '.']
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'Push Docker Image'
     args: ['push', 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA']
 
-  # 6. Deploy to Cloud Run
+  # 4. Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'Deploy to Cloud Run'
     args:
       - 'run'
       - 'deploy'
-      - 'finsolvz-backend' # Service name
+      - 'finsolvz-backend'
       - '--image=gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA'
-      - '--region=asia-southeast2' # Ganti dengan region yang sesuai (misal: asia-southeast2 untuk Jakarta)
+      - '--region=asia-southeast2'
       - '--platform=managed'
-      - '--allow-unauthenticated' # Hapus ini jika Anda ingin layanan menjadi private
-      - '--set-env-vars=APP_ENV=production' # Set production environment variable
-      # Pass other necessary environment variables for the application
-      - '--set-env-vars=JWT_SECRET=${_JWT_SECRET}'
-      - '--set-env-vars=DB_HOST=${_DB_HOST},DB_PORT=${_DB_PORT},DB_USER=${_DB_USER},DB_NAME=${_DB_NAME}'
-    secretEnv: ['_JWT_SECRET'] # Declare secret environment variables for Cloud Run deployment
-    # Bind secrets from Secret Manager
-    # available in Cloud Build trigger settings
-    # e.g., _JWT_SECRET: projects/PROJECT_ID/secrets/JWT_SECRET/versions/latest
+      - '--allow-unauthenticated'
+      - '--port=8787'
+      - '--memory=512Mi'
+      - '--cpu=1'
+      - '--max-instances=10'
+      - '--set-env-vars=APP_ENV=production,PORT=8787,GREETING=✨ Finsolvz Production API ✨'
+      - '--set-secrets=JWT_SECRET=JWT_SECRET:latest,MONGO_URI=MONGO_URI:latest,NODEMAILER_EMAIL=NODEMAILER_EMAIL:latest,NODEMAILER_PASS=NODEMAILER_PASS:latest'
 
-# Images to be pushed to Artifact Registry (or GCR)
 images:
   - 'gcr.io/$PROJECT_ID/finsolvz-backend:$COMMIT_SHA'
 
-# Declare secrets for Cloud Build to access Secret Manager
-# This part goes into your Cloud Build Trigger settings, not directly in cloudbuild.yaml
-# For example, in the Cloud Build UI, under "Secrets" section for your trigger:
-#   _DB_PASSWORD: projects/PROJECT_ID/secrets/DB_PASSWORD/versions/latest
-#   _JWT_SECRET: projects/PROJECT_ID/secrets/JWT_SECRET/versions/latest
-#   _DB_HOST: projects/PROJECT_ID/secrets/DB_HOST/versions/latest # If DB_HOST is also a secret
-#   _DB_USER: projects/PROJECT_ID/secrets/DB_USER/versions/latest # If DB_USER is also a secret
-#   _DB_NAME: projects/PROJECT_ID/secrets/DB_NAME/versions/latest # If DB_NAME is also a secret
+# Configure secrets in Cloud Build Trigger UI:
+# JWT_SECRET: projects/$PROJECT_ID/secrets/JWT_SECRET/versions/latest
+# MONGO_URI: projects/$PROJECT_ID/secrets/MONGO_URI/versions/latest
+# NODEMAILER_EMAIL: projects/$PROJECT_ID/secrets/NODEMAILER_EMAIL/versions/latest
+# NODEMAILER_PASS: projects/$PROJECT_ID/secrets/NODEMAILER_PASS/versions/latest

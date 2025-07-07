@@ -1,0 +1,44 @@
+# Gitignore
+# Compiled Go binaries
+/bin/
+
+# Environment variables (sensitive)
+.env
+
+# Go module cache and build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.test
+*.prof
+
+# IDE and editor specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.DS_Store
+Thumbs.db
+
+# Docker specific ignores (if any temporary local volumes/containers not managed by make)
+.docker/
+
+# GoLand specific
+.idea/
+.run/
+
+# VS Code local history (if configured)
+.history/
+
+# GoLand Go module cache for project (if it exists outside of GOPATH)
+.go/
+
+# Logs
+*.log
+
+# Certificates/Keys (if any for local testing)
+*.key
+*.pem
+*.crt
