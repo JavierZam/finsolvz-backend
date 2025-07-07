@@ -22,18 +22,17 @@ func NewHandler(service Service) *Handler {
 	}
 }
 
-// RegisterRoutes registers company routes - EXACT legacy compatibility
+// RegisterRoutes registers company routes
 func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Handler) http.Handler) {
 	// Protected routes - require authentication
 	protected := router.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware)
 
-	// Company routes - exact legacy routes
+	// Company routes
 	protected.HandleFunc("/api/company", h.GetCompanies).Methods("GET")
 	protected.HandleFunc("/api/company", h.CreateCompany).Methods("POST")
 	protected.HandleFunc("/api/user/companies", h.GetUserCompanies).Methods("GET")
-	protected.HandleFunc("/api/company/{id}", h.GetCompanyByID).Methods("GET")
-	protected.HandleFunc("/api/company/{name}", h.GetCompanyByName).Methods("GET")
+	protected.HandleFunc("/api/company/{idOrName}", h.GetCompanyByIDOrName).Methods("GET")
 	
 	// Admin-only routes
 	adminOnly := protected.PathPrefix("").Subrouter()
@@ -85,36 +84,7 @@ func (h *Handler) GetUserCompanies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ EXACT legacy format: return array directly
 	utils.RespondJSON(w, http.StatusOK, companies)
-}
-
-func (h *Handler) GetCompanyByID(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	company, err := h.service.GetCompanyByID(r.Context(), id)
-	if err != nil {
-		utils.HandleHTTPError(w, err, r)
-		return
-	}
-
-	// ✅ EXACT legacy format: return object directly
-	utils.RespondJSON(w, http.StatusOK, company)
-}
-
-func (h *Handler) GetCompanyByName(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-
-	company, err := h.service.GetCompanyByName(r.Context(), name)
-	if err != nil {
-		utils.HandleHTTPError(w, err, r)
-		return
-	}
-
-	// ✅ EXACT legacy format: return object directly
-	utils.RespondJSON(w, http.StatusOK, company)
 }
 
 func (h *Handler) UpdateCompany(w http.ResponseWriter, r *http.Request) {
@@ -160,4 +130,35 @@ func (h *Handler) DeleteCompany(w http.ResponseWriter, r *http.Request) {
 		"message": "Company deleted successfully",
 		"company": deletedCompany,
 	})
+}
+
+func (h *Handler) GetCompanyByIDOrName(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
+    idOrName := vars["idOrName"]
+
+    var company *CompanyResponse
+    var err error
+
+    // Logic detection: 24 hex chars = ObjectID, else = Name
+    if len(idOrName) == 24 && isHexString(idOrName) {
+        company, err = h.service.GetCompanyByID(r.Context(), idOrName)
+    } else {
+        company, err = h.service.GetCompanyByName(r.Context(), idOrName)
+    }
+
+    if err != nil {
+        utils.HandleHTTPError(w, err, r)
+        return
+    }
+
+    utils.RespondJSON(w, http.StatusOK, company)
+}
+
+func isHexString(s string) bool {
+    for _, char := range s {
+        if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+            return false
+        }
+    }
+    return true
 }

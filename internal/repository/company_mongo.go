@@ -50,18 +50,6 @@ func (r *companyMongoRepository) GetByID(ctx context.Context, id primitive.Objec
 	return &company, nil
 }
 
-func (r *companyMongoRepository) GetByName(ctx context.Context, name string) (*domain.Company, error) {
-	var company domain.Company
-	err := r.collection.FindOne(ctx, bson.M{"name": name}).Decode(&company)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, errors.New("COMPANY_NOT_FOUND", "Company not found", 404, err, nil)
-		}
-		return nil, errors.New("DATABASE_ERROR", "Failed to get company", 500, err, nil)
-	}
-	return &company, nil
-}
-
 func (r *companyMongoRepository) GetAll(ctx context.Context) ([]*domain.Company, error) {
 	// Enhanced aggregation pipeline untuk populate user data
 	pipeline := []bson.M{
@@ -162,4 +150,70 @@ func (r *companyMongoRepository) Delete(ctx context.Context, id primitive.Object
 	}
 
 	return nil
+}
+
+func (r *companyMongoRepository) GetByName(ctx context.Context, name string) (*domain.Company, error) {
+	var company domain.Company
+	
+	// Case insensitive regex search dengan multiple patterns
+	patterns := []bson.M{
+		// 1. Exact match (case insensitive)
+		{"name": bson.M{"$regex": "^" + name + "$", "$options": "i"}},
+		// 2. Contains match (case insensitive) 
+		{"name": bson.M{"$regex": name, "$options": "i"}},
+		// 3. Word boundary match (partial words)
+		{"name": bson.M{"$regex": "\\b" + name + "\\b", "$options": "i"}},
+	}
+	
+	// Try patterns in order of preference
+	for _, pattern := range patterns {
+		err := r.collection.FindOne(ctx, pattern).Decode(&company)
+		if err == nil {
+			return &company, nil // Found with this pattern
+		}
+		if err != mongo.ErrNoDocuments {
+			// Real error (not just "not found"), return it
+			return nil, errors.New("DATABASE_ERROR", "Failed to search company", 500, err, nil)
+		}
+	}
+	
+	// No match found with any pattern
+	return nil, errors.New("COMPANY_NOT_FOUND", "Company not found", 404, nil, nil)
+}
+
+func (r *companyMongoRepository) SearchByName(ctx context.Context, name string) ([]*domain.Company, error) {
+	// Case insensitive regex search dengan multiple patterns
+	patterns := []bson.M{
+		// 1. Exact match (case insensitive)
+		{"name": bson.M{"$regex": "^" + name + "$", "$options": "i"}},
+		// 2. Contains match (case insensitive) 
+		{"name": bson.M{"$regex": name, "$options": "i"}},
+		// 3. Word boundary match (partial words)
+		{"name": bson.M{"$regex": "\\b" + name + "\\b", "$options": "i"}},
+	}
+
+	var companies []*domain.Company
+	for _, pattern := range patterns {
+		cursor, err := r.collection.Find(ctx, pattern)
+		if err != nil {
+			return nil, errors.New("DATABASE_ERROR", "Failed to search companies", 500, err, nil)
+		}
+		defer cursor.Close(ctx)
+
+		var results []*domain.Company
+		if err = cursor.All(ctx, &results); err != nil {
+			return nil, errors.New("DATABASE_ERROR", "Failed to decode companies", 500, err, nil)
+		}
+
+		if len(results) > 0 {
+			companies = append(companies, results...)
+			break // Found matches with this pattern, stop searching
+		}
+	}
+
+	if len(companies) == 0 {
+		return nil, errors.New("COMPANY_NOT_FOUND", "No companies found matching the criteria", 404, nil, nil)
+	}
+
+	return companies, nil
 }

@@ -137,32 +137,6 @@ func (s *service) GetCompanyByID(ctx context.Context, id string) (*CompanyRespon
 	return &response, nil
 }
 
-func (s *service) GetCompanyByName(ctx context.Context, name string) (*CompanyResponse, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, ErrInvalidCompanyName
-	}
-
-	company, err := s.companyRepo.GetByName(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-
-	// Handle profile picture URL processing (legacy compatibility)
-	if company.ProfilePicture != nil && !strings.HasPrefix(*company.ProfilePicture, "http") {
-		fullURL := "http://152.42.172.219:8787" + *company.ProfilePicture
-		company.ProfilePicture = &fullURL
-	}
-
-	users, err := s.getUsersByIDs(ctx, company.User)
-	if err != nil {
-		response := ToCompanyResponse(company)
-		return &response, nil
-	}
-
-	response := ToCompanyResponseWithUsers(company, users)
-	return &response, nil
-}
 
 func (s *service) GetUserCompanies(ctx context.Context) ([]*CompanyResponse, error) {
 	// Get current user from context
@@ -289,4 +263,46 @@ func (s *service) getUsersByIDs(ctx context.Context, userIDs []primitive.ObjectI
 		// Continue even if some users are not found (soft error handling)
 	}
 	return users, nil
+}
+
+func (s *service) GetCompanyByName(ctx context.Context, name string) (*CompanyResponse, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, ErrInvalidCompanyName
+	}
+
+	// ✅ ENHANCED: Try exact match first, then flexible search
+	company, err := s.companyRepo.GetByName(ctx, name)
+	if err == nil {
+		// Found exact match
+		return s.buildCompanyResponse(ctx, company)
+	}
+
+	// If exact match failed, try flexible search
+	companies, searchErr := s.companyRepo.SearchByName(ctx, name)
+	if searchErr != nil || len(companies) == 0 {
+		// Both exact and flexible search failed
+		return nil, ErrCompanyNotFound
+	}
+
+	// Return first result from flexible search (most relevant)
+	return s.buildCompanyResponse(ctx, companies[0])
+}
+
+// Helper function to build company response with populated users
+func (s *service) buildCompanyResponse(ctx context.Context, company *domain.Company) (*CompanyResponse, error) {
+	// Handle profile picture URL processing (legacy compatibility)
+	if company.ProfilePicture != nil && !strings.HasPrefix(*company.ProfilePicture, "http") {
+		fullURL := "http://152.42.172.219:8787" + *company.ProfilePicture
+		company.ProfilePicture = &fullURL
+	}
+
+	users, err := s.getUsersByIDs(ctx, company.User)
+	if err != nil {
+		response := ToCompanyResponse(company)
+		return &response, nil
+	}
+
+	response := ToCompanyResponseWithUsers(company, users)
+	return &response, nil
 }

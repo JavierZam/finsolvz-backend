@@ -22,6 +22,7 @@ type CompanyRepository interface {
 	Create(ctx context.Context, company *Company) error
 	GetByID(ctx context.Context, id primitive.ObjectID) (*Company, error)
 	GetByName(ctx context.Context, name string) (*Company, error)
+	SearchByName(ctx context.Context, name string) ([]*Company, error)
 	GetAll(ctx context.Context) ([]*Company, error)
 	GetByUserID(ctx context.Context, userID primitive.ObjectID) ([]*Company, error)
 	Update(ctx context.Context, id primitive.ObjectID, company *Company) error

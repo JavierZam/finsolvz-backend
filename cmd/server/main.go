@@ -14,7 +14,7 @@ import (
 
 	"finsolvz-backend/internal/app/auth"
 	"finsolvz-backend/internal/app/company"
-	"finsolvz-backend/internal/app/report" // ✅ NEW IMPORT
+	"finsolvz-backend/internal/app/report" 
 	"finsolvz-backend/internal/app/reporttype"
 	"finsolvz-backend/internal/app/user"
 	"finsolvz-backend/internal/config"
@@ -42,7 +42,7 @@ func main() {
 	userRepo := repository.NewUserMongoRepository(db)
 	reportTypeRepo := repository.NewReportTypeMongoRepository(db)
 	companyRepo := repository.NewCompanyMongoRepository(db)
-	reportRepo := repository.NewReportMongoRepository(db) // ✅ NEW REPOSITORY
+	reportRepo := repository.NewReportMongoRepository(db)
 
 	// Initialize services
 	emailService := utils.NewEmailService()
@@ -50,14 +50,14 @@ func main() {
 	userService := user.NewService(userRepo)
 	reportTypeService := reporttype.NewService(reportTypeRepo)
 	companyService := company.NewService(companyRepo, userRepo)
-	reportService := report.NewService(reportRepo) // ✅ SIMPLIFIED - NO AI
+	reportService := report.NewService(reportRepo)
 
 	// Initialize handlers
 	authHandler := auth.NewHandler(authService)
 	userHandler := user.NewHandler(userService, authService)
 	reportTypeHandler := reporttype.NewHandler(reportTypeService)
 	companyHandler := company.NewHandler(companyService)
-	reportHandler := report.NewHandler(reportService) // ✅ NEW HANDLER
+	reportHandler := report.NewHandler(reportService)
 
 	// Setup router
 	router := mux.NewRouter()
@@ -79,7 +79,7 @@ func main() {
 	userHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 	reportTypeHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 	companyHandler.RegisterRoutes(router, middleware.AuthMiddleware)
-	reportHandler.RegisterRoutes(router, middleware.AuthMiddleware) // ✅ NEW ROUTES
+	reportHandler.RegisterRoutes(router, middleware.AuthMiddleware)
 
 	// Health check endpoint
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -91,6 +91,70 @@ func main() {
 			"message": greeting,
 			"status":  "healthy",
 		})
+	}).Methods("GET")
+
+	// ✅ ADD: Debug endpoint to check file existence
+	router.HandleFunc("/debug/files", func(w http.ResponseWriter, r *http.Request) {
+		// Check if openapi.yaml exists
+		if _, err := os.Stat("./api/openapi.yaml"); err != nil {
+			utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
+				"openapi_yaml_exists": false,
+				"error": err.Error(),
+				"working_directory": func() string {
+					wd, _ := os.Getwd()
+					return wd
+				}(),
+			})
+		} else {
+			utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
+				"openapi_yaml_exists": true,
+				"working_directory": func() string {
+					wd, _ := os.Getwd()
+					return wd
+				}(),
+			})
+		}
+	}).Methods("GET")
+
+	// ✅ ADD: Swagger UI endpoints
+	router.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
+		swaggerHTML := `<!DOCTYPE html>
+<html>
+<head>
+    <title>Finsolvz API Documentation</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3.25.0/swagger-ui.css" />
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@3.25.0/swagger-ui-bundle.js"></script>
+    <script>
+        SwaggerUIBundle({
+            url: '/api/openapi.yaml',
+            dom_id: '#swagger-ui',
+            presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIBundle.presets.standalone
+            ]
+        });
+    </script>
+</body>
+</html>`
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(swaggerHTML))
+	}).Methods("GET")
+
+	// Serve OpenAPI spec
+	router.HandleFunc("/api/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+		// ✅ ENHANCED: Better file serving with proper headers
+		filePath := "./api/openapi.yaml"
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			http.Error(w, "OpenAPI spec not found", http.StatusNotFound)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/x-yaml")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		http.ServeFile(w, r, filePath)
 	}).Methods("GET")
 
 	// Apply CORS middleware
