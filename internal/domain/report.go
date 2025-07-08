@@ -11,7 +11,7 @@ type Report struct {
 	ID         primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	ReportName string               `bson:"reportName" json:"reportName"`
 	ReportType primitive.ObjectID   `bson:"reportType" json:"reportType"`
-	Year       string               `bson:"year" json:"year"`
+	Year       int                  `bson:"year" json:"year"`
 	Company    primitive.ObjectID   `bson:"company" json:"company"`
 	Currency   *string              `bson:"currency,omitempty" json:"currency"`
 	CreatedBy  primitive.ObjectID   `bson:"createdBy" json:"createdBy"`
@@ -25,7 +25,7 @@ type PopulatedReport struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty" json:"_id"`
 	ReportName string             `bson:"reportName" json:"reportName"`
 	ReportType *ReportType        `bson:"reportType" json:"reportType"`
-	Year       string             `bson:"year" json:"year"`
+	Year       int                `bson:"year" json:"year"`
 	Company    *Company           `bson:"company" json:"company"`
 	Currency   *string            `bson:"currency,omitempty" json:"currency"`
 	CreatedBy  *User              `bson:"createdBy" json:"createdBy"`

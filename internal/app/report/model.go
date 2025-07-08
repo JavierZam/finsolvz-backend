@@ -1,6 +1,7 @@
 package report
 
 import (
+	"strconv"
 	"time"
 
 	"finsolvz-backend/internal/domain"
@@ -75,7 +76,7 @@ func ToReportResponse(report *domain.PopulatedReport) *ReportResponse {
 	response := &ReportResponse{
 		ID:         report.ID.Hex(),
 		ReportName: report.ReportName,
-		Year:       report.Year, // Already guaranteed to be string from repo fix
+		Year:       strconv.Itoa(report.Year), // Convert int to string for response
 		Currency:   report.Currency,
 		ReportData: report.ReportData,
 		CreatedAt:  report.CreatedAt,

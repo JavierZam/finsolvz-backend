@@ -2,6 +2,7 @@ package report
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -32,6 +33,18 @@ func NewService(reportRepo domain.ReportRepository) Service {
 	return &service{
 		reportRepo: reportRepo,
 	}
+}
+
+// convertStringToInt converts year string to int, defaults to 0 if invalid
+func convertStringToInt(yearStr string) int {
+	if yearStr == "" {
+		return 0
+	}
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		return 0
+	}
+	return year
 }
 
 func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*ReportResponse, error) {
@@ -70,7 +83,7 @@ func (s *service) CreateReport(ctx context.Context, req CreateReportRequest) (*R
 	report := &domain.Report{
 		ReportName: strings.TrimSpace(req.ReportName),
 		ReportType: reportTypeID,
-		Year:       strings.TrimSpace(req.Year),
+		Year:       convertStringToInt(strings.TrimSpace(req.Year)),
 		Company:    companyID,
 		Currency:   req.Currency,
 		CreatedBy:  createdByID,
@@ -135,7 +148,7 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 	}
 
 	if req.Year != nil {
-		updateReport.Year = strings.TrimSpace(*req.Year)
+		updateReport.Year = convertStringToInt(strings.TrimSpace(*req.Year))
 	}
 
 	if req.Company != nil {

@@ -35,21 +35,9 @@ func (r *reportMongoRepository) Create(ctx context.Context, report *domain.Repor
 	return nil
 }
 
-// getPopulationPipeline creates an aggregation pipeline with year type handling for legacy data compatibility.
+// getPopulationPipeline creates an aggregation pipeline for populating report references.
 func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 	return []bson.M{
-		// Handle mixed year types (string/integer) from legacy data
-		{
-			"$addFields": bson.M{
-				"year": bson.M{
-					"$cond": bson.M{
-						"if":   bson.M{"$eq": []interface{}{bson.M{"$type": "$year"}, "int"}},
-						"then": bson.M{"$toString": "$year"},
-						"else": "$year",
-					},
-				},
-			},
-		},
 		// Populate company
 		{
 			"$lookup": bson.M{
