@@ -4,8 +4,8 @@
 The Swagger documentation was inaccessible in deployment due to several configuration issues:
 
 1. **Missing OpenAPI file in container** - The `api/openapi.yaml` file was not copied to the Docker container
-2. **Port mismatch** - Container exposed port 8080 but app ran on port 8787
-3. **Cloud Build port configuration** - Deployment used wrong port
+2. **Reserved environment variable** - Google Cloud Run automatically sets the `PORT` environment variable and doesn't allow overriding it
+3. **Port configuration mismatch** - Need to use port 8080 for Cloud Run (default) and 8787 for local development
 4. **Documentation inconsistencies** - OpenAPI spec didn't match actual API implementation
 
 ## Fixes Applied
@@ -15,19 +15,20 @@ The Swagger documentation was inaccessible in deployment due to several configur
 # Copy the OpenAPI specification file
 COPY --from=builder /app/api ./api
 
-# Expose port (default 8787, configurable via PORT env var)
-EXPOSE 8787
+# Expose port (Cloud Run uses 8080, local dev uses 8787)
+EXPOSE 8080
 
-# Health check updated to use correct port
+# Health check (uses PORT env var, defaults to 8080 for Cloud Run)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider --timeout=10 http://localhost:8787/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider --timeout=10 http://localhost:${PORT:-8080}/ || exit 1
 ```
 
 ### 2. Cloud Build Configuration (`cloudbuild.yaml`)
 ```yaml
-'--port', '8787',
-'--set-env-vars', 'APP_ENV=production,PORT=8787',
+'--port', '8080',
+'--set-env-vars', 'APP_ENV=production',
 ```
+**Note**: Removed `PORT` environment variable as Google Cloud Run automatically sets this and it's a reserved environment variable.
 
 ### 3. OpenAPI Documentation Updates (`api/openapi.yaml`)
 - Fixed server URLs to reflect actual deployment

@@ -29,9 +29,10 @@ fi
 
 echo ""
 echo "3. Testing deployment configuration..."
-echo "   Dockerfile: Exposes port 8787 ✅"
-echo "   CloudBuild: Configured for port 8787 ✅"
-echo "   Deploy script: Uses port 8787 ✅"
+echo "   Dockerfile: Exposes port 8080 (Cloud Run) ✅"
+echo "   CloudBuild: Configured for port 8080 (Cloud Run) ✅"
+echo "   Deploy script: Uses port 8080 (Cloud Run) ✅"
+echo "   Local dev: Uses port 8787 ✅"
 
 echo ""
 echo "4. Next steps for deployment:"

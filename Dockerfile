@@ -47,12 +47,12 @@ RUN chown -R appuser:appgroup /app
 # Switch to non-root user
 USER appuser
 
-# Expose port (default 8787, configurable via PORT env var)
-EXPOSE 8787
+# Expose port (Cloud Run uses 8080, local dev uses 8787)
+EXPOSE 8080
 
-# Health check
+# Health check (uses PORT env var, defaults to 8080 for Cloud Run)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider --timeout=10 http://localhost:8787/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider --timeout=10 http://localhost:${PORT:-8080}/ || exit 1
 
 # Command to run the application when the container starts
 CMD ["./main"]

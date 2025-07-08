@@ -25,11 +25,11 @@ gcloud run deploy $SERVICE_NAME \
   --region $REGION \
   --platform managed \
   --allow-unauthenticated \
-  --port 8787 \
+  --port 8080 \
   --memory 512Mi \
   --cpu 1 \
   --max-instances 10 \
-  --set-env-vars="APP_ENV=development,PORT=8787,GREETING=✨ Finsolvz Backend API ✨" \
+  --set-env-vars="APP_ENV=development,GREETING=✨ Finsolvz Backend API ✨" \
   --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest"
 
 # 4. Get service URL

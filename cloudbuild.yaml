@@ -44,8 +44,8 @@ steps:
       '--allow-unauthenticated',
       '--memory', '1Gi',
       '--cpu', '1',
-      '--port', '8787',
-      '--set-env-vars', 'APP_ENV=production,PORT=8787',
+      '--port', '8080',
+      '--set-env-vars', 'APP_ENV=production',
       '--set-secrets', 'MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest',
       '--quiet'
     ]

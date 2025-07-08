@@ -31,7 +31,7 @@ info:
 servers:
   - url: http://localhost:8787
     description: Local Development Server
-  - url: https://finsolvz-backend-dev-123456789.us-central1.run.app
+  - url: https://finsolvz-backend-dev-123456789.asia-southeast2.run.app
     description: Production Environment (Google Cloud Run)
 
 tags:
