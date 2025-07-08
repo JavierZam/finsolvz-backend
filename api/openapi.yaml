@@ -15,7 +15,11 @@ info:
     **Authorization Pattern**: Authorization checks are performed at the controller level, not middleware level.
     Most report endpoints require authentication only, while user management requires specific roles.
     
-    **Base URL**: `http://localhost:8787` (development)
+    **Base URL**: `http://localhost:8787` (development) or your deployed Cloud Run URL
+    
+    **Swagger UI**: Access the interactive API documentation at `/docs` endpoint
+    
+    **Smart Routing**: Company and Report Type endpoints support both ID and name lookups through intelligent parameter detection
   version: 2.0.0
   contact:
     name: Finsolvz Team
@@ -27,8 +31,8 @@ info:
 servers:
   - url: http://localhost:8787
     description: Local Development Server
-  - url: https://finsolvz-backend.example.com
-    description: Production Environment
+  - url: https://finsolvz-backend-dev-123456789.us-central1.run.app
+    description: Production Environment (Google Cloud Run)
 
 tags:
   - name: General
@@ -408,30 +412,6 @@ paths:
           $ref: '#/components/responses/ConflictError'
 
   /api/company/{id}:
-    get:
-      summary: Get company by ID
-      operationId: getCompanyById
-      tags:
-        - Company Management
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            example: "60f1b2e5e4b0c7a1d8b9c0d1"
-      responses:
-        '200':
-          description: Company details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CompanyResponse'
-        '404':
-          $ref: '#/components/responses/NotFoundError'
-
     put:
       summary: Update company (SUPER_ADMIN only)
       operationId: updateCompany
@@ -498,21 +478,22 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenError'
 
-  /api/company/{name}:
+  /api/company/{idOrName}:
     get:
-      summary: Get company by name
-      operationId: getCompanyByName
+      summary: Get company by ID or name
+      operationId: getCompanyByIdOrName
       tags:
         - Company Management
       security:
         - BearerAuth: []
       parameters:
-        - name: name
+        - name: idOrName
           in: path
           required: true
           schema:
             type: string
-            example: "Acme Corporation"
+            example: "60f1b2e5e4b0c7a1d8b9c0d1"
+          description: Company ID (24 hex characters) or company name. The system automatically detects whether the parameter is an ObjectID or a name.
       responses:
         '200':
           description: Company details
@@ -603,7 +584,7 @@ paths:
           schema:
             type: string
             example: "60f1b2e5e4b0c7a1d8b9c0d1"
-          description: Report type ID (24 hex chars) or name
+          description: Report type ID (24 hex characters) or name. The system automatically detects whether the parameter is an ObjectID or a name.
       responses:
         '200':
           description: Report type details

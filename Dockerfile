@@ -36,6 +36,9 @@ WORKDIR /app
 # Copy the compiled binary from the builder stage
 COPY --from=builder /main ./main
 
+# Copy the OpenAPI specification file
+COPY --from=builder /app/api ./api
+
 
 
 # Change ownership to app user
@@ -44,12 +47,12 @@ RUN chown -R appuser:appgroup /app
 # Switch to non-root user
 USER appuser
 
-# Expose port
-EXPOSE 8080
+# Expose port (default 8787, configurable via PORT env var)
+EXPOSE 8787
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider --timeout=10 http://localhost:8080/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider --timeout=10 http://localhost:8787/ || exit 1
 
 # Command to run the application when the container starts
 CMD ["./main"]
