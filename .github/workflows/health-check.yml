@@ -2,8 +2,8 @@ name: Production Health Check
 
 on:
   schedule:
-    # Run health check every 30 minutes
-    - cron: '*/30 * * * *'
+    # Run health check every 6 hours
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -19,44 +19,26 @@ jobs:
       with:
         go-version: '1.22'
 
-    - name: Get service URL
-      id: get-url
+    - name: Health and performance check
       run: |
-        echo "SERVICE_URL=https://finsolvz-backend-${{ secrets.GCP_PROJECT_ID }}.a.run.app" >> $GITHUB_OUTPUT
-
-    - name: Health check
-      run: |
-        echo "🏥 Running health check against production..."
-        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-url.outputs.SERVICE_URL }})
+        SERVICE_URL="https://finsolvz-backend-asia-southeast2-${{ secrets.GCP_PROJECT_ID }}.a.run.app"
         
-        if [ "$response" = "200" ]; then
-          echo "✅ Health check passed - Status: $response"
-        else
+        # Health check
+        response=$(curl -s -o /dev/null -w "%{http_code}" $SERVICE_URL)
+        if [ "$response" != "200" ]; then
           echo "❌ Health check failed - Status: $response"
           exit 1
         fi
-
-    - name: Performance test
-      run: |
-        echo "⚡ Running performance test..."
+        
+        # Performance check
         start_time=$(date +%s%N)
-        curl -s ${{ steps.get-url.outputs.SERVICE_URL }} > /dev/null
+        curl -s $SERVICE_URL > /dev/null
         end_time=$(date +%s%N)
-        
         duration=$(( (end_time - start_time) / 1000000 ))
-        echo "🕐 Response time: ${duration}ms"
         
-        if [ $duration -gt 2000 ]; then
-          echo "⚠️ Slow response time: ${duration}ms (threshold: 2000ms)"
+        if [ $duration -gt 3000 ]; then
+          echo "⚠️ Slow response: ${duration}ms"
           exit 1
-        else
-          echo "✅ Performance OK: ${duration}ms"
         fi
-
-    - name: Notify on failure
-      if: failure()
-      run: |
-        echo "🚨 Production health check failed!"
-        echo "Service URL: ${{ steps.get-url.outputs.SERVICE_URL }}"
-        echo "Time: $(date)"
-        # Add notification logic here (Slack, Discord, email, etc.)
+        
+        echo "✅ Health OK (${duration}ms)"

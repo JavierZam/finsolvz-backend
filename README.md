@@ -54,11 +54,6 @@
 
 ## 🚀 Quick Setup
 
-### **One-Command GCP Deployment**
-```bash
-./setup-gcp-environment.sh YOUR_PROJECT_ID YOUR_GITHUB_USERNAME
-```
-
 ### **Local Development**
 ```bash
 # Prerequisites: Go 1.22+, MongoDB
@@ -67,12 +62,10 @@ cp .env.example .env  # Configure your environment
 go run cmd/server/main.go
 ```
 
-### **Performance Testing**
-```bash
-./performance-test.sh https://your-service-url.a.run.app
-```
-
-📖 **[Complete Setup Guide](SETUP.md)**
+### **Deployment**
+- **Push to `main`** → Auto-deploy via GitHub Actions
+- **Manual testing**: `make test`
+- **Local build**: `make build`
 
 ## 🎯 Performance Optimizations
 

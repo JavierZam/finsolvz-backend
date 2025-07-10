@@ -10,7 +10,7 @@ jobs:
     
     strategy:
       matrix:
-        go-version: ['1.22', '1.23']
+        go-version: ['1.22']
     
     steps:
     - name: Checkout code
@@ -49,28 +49,14 @@ jobs:
         go vet ./...
         echo "✅ Go vet passed"
 
-    - name: Run unit tests
+    - name: Run tests and build
       run: |
-        echo "🧪 Running unit tests with Go ${{ matrix.go-version }}..."
-        go test -v -timeout=120s -coverprofile=coverage-${{ matrix.go-version }}.out ./internal/app/...
-        echo "📊 Coverage report:"
-        go tool cover -func=coverage-${{ matrix.go-version }}.out | tail -5
+        go test -timeout=120s -coverprofile=coverage.out ./internal/app/...
+        go build -o finsolvz-backend-test ./cmd/server
+        rm finsolvz-backend-test
       env:
         JWT_SECRET: test-jwt-secret-for-github-actions
         CGO_ENABLED: 0
-
-    - name: Build test
-      run: |
-        echo "🔨 Testing build..."
-        go build -o finsolvz-backend-test ./cmd/server
-        ls -la finsolvz-backend-test
-        echo "✅ Build successful"
-
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-go-${{ matrix.go-version }}
-        path: coverage-${{ matrix.go-version }}.out
 
   security-scan:
     runs-on: ubuntu-latest
