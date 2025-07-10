@@ -8,16 +8,16 @@ import (
 )
 
 type User struct {
-	ID        primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
-	Name      string               `bson:"name" json:"name"`
-	Email     string               `bson:"email" json:"email"`
-	Password  string               `bson:"password" json:"-"`
-	Role      UserRole             `bson:"role" json:"role"`
-	Company   []primitive.ObjectID `bson:"company" json:"company"`
-	CreatedAt time.Time            `bson:"createdAt" json:"createdAt"`
-	UpdatedAt time.Time            `bson:"updatedAt" json:"updatedAt"`
-	ResetPasswordToken   *string    `bson:"resetPasswordToken,omitempty" json:"-"`
-	ResetPasswordExpires *time.Time `bson:"resetPasswordExpires,omitempty" json:"-"`
+	ID                   primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
+	Name                 string               `bson:"name" json:"name"`
+	Email                string               `bson:"email" json:"email"`
+	Password             string               `bson:"password" json:"-"`
+	Role                 UserRole             `bson:"role" json:"role"`
+	Company              []primitive.ObjectID `bson:"company" json:"company"`
+	CreatedAt            time.Time            `bson:"createdAt" json:"createdAt"`
+	UpdatedAt            time.Time            `bson:"updatedAt" json:"updatedAt"`
+	ResetPasswordToken   *string              `bson:"resetPasswordToken,omitempty" json:"-"`
+	ResetPasswordExpires *time.Time           `bson:"resetPasswordExpires,omitempty" json:"-"`
 }
 
 type UserRole string

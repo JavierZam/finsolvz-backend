@@ -2,12 +2,15 @@ package company
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"finsolvz-backend/internal/domain"
 	"finsolvz-backend/internal/platform/http/middleware"
+	"finsolvz-backend/internal/utils"
 	"finsolvz-backend/internal/utils/errors"
 )
 
@@ -80,6 +83,14 @@ func (s *service) CreateCompany(ctx context.Context, req CreateCompanyRequest) (
 }
 
 func (s *service) GetCompanies(ctx context.Context) ([]*CompanyResponse, error) {
+	// Try cache first
+	cache := utils.GetCache()
+	cacheKey := "companies:all"
+
+	if cached, found := cache.Get(cacheKey); found {
+		return cached.([]*CompanyResponse), nil
+	}
+
 	companies, err := s.companyRepo.GetAll(ctx)
 	if err != nil {
 		return nil, err
@@ -97,10 +108,21 @@ func (s *service) GetCompanies(ctx context.Context) ([]*CompanyResponse, error) 
 		}
 	}
 
+	// Cache for 3 minutes (companies don't change often)
+	cache.Set(cacheKey, responses, 3*time.Minute)
+
 	return responses, nil
 }
 
 func (s *service) GetCompanyByID(ctx context.Context, id string) (*CompanyResponse, error) {
+	// Try cache first
+	cache := utils.GetCache()
+	cacheKey := fmt.Sprintf("company:%s", id)
+
+	if cached, found := cache.Get(cacheKey); found {
+		return cached.(*CompanyResponse), nil
+	}
+
 	objectID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("INVALID_COMPANY_ID", "Invalid company ID format", 400, err, nil)
@@ -120,13 +142,14 @@ func (s *service) GetCompanyByID(ctx context.Context, id string) (*CompanyRespon
 	users, err := s.getUsersByIDs(ctx, company.User)
 	if err != nil {
 		response := ToCompanyResponse(company)
+		cache.Set(cacheKey, &response, 5*time.Minute)
 		return &response, nil
 	}
 
 	response := ToCompanyResponseWithUsers(company, users)
+	cache.Set(cacheKey, &response, 5*time.Minute)
 	return &response, nil
 }
-
 
 func (s *service) GetUserCompanies(ctx context.Context) ([]*CompanyResponse, error) {
 	userCtx, ok := middleware.GetUserFromContext(ctx)

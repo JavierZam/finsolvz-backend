@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -31,6 +32,17 @@ func NewService(userRepo domain.UserRepository, emailService utils.EmailService)
 }
 
 func (s *service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
+	// Basic validation
+	if req.Name == "" {
+		return nil, errors.New("INVALID_NAME", "Name is required", 400, nil, nil)
+	}
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		return nil, errors.New("INVALID_EMAIL", "Valid email is required", 400, nil, nil)
+	}
+	if len(req.Password) < 6 {
+		return nil, errors.New("INVALID_PASSWORD", "Password must be at least 6 characters", 400, nil, nil)
+	}
+
 	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err == nil && existingUser != nil {
 		return nil, ErrUserAlreadyExists

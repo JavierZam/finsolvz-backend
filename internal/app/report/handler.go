@@ -31,6 +31,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Ha
 	protected.HandleFunc("/api/reports/{id}", h.DeleteReport).Methods("DELETE")
 
 	protected.HandleFunc("/api/reports", h.GetReports).Methods("GET")
+	protected.HandleFunc("/api/reports/paginated", h.GetReportsPaginated).Methods("GET")
 	protected.HandleFunc("/api/reports/{id}", h.GetReportByID).Methods("GET")
 	protected.HandleFunc("/api/reports/name/{name}", h.GetReportByName).Methods("GET")
 	protected.HandleFunc("/api/reports/company/{companyId}", h.GetReportsByCompany).Methods("GET")
@@ -109,6 +110,20 @@ func (h *Handler) GetReports(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.RespondJSON(w, http.StatusOK, reports)
+}
+
+func (h *Handler) GetReportsPaginated(w http.ResponseWriter, r *http.Request) {
+	pagination := utils.GetPaginationParams(r)
+
+	reports, total, err := h.service.GetReportsPaginated(r.Context(), pagination.Skip, pagination.Limit)
+	if err != nil {
+		utils.HandleHTTPError(w, err, r)
+		return
+	}
+
+	pagination.Total = total
+	response := utils.CreatePaginatedResponse(reports, pagination)
+	utils.RespondJSON(w, http.StatusOK, response)
 }
 
 func (h *Handler) GetReportByID(w http.ResponseWriter, r *http.Request) {

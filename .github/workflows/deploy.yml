@@ -1,0 +1,226 @@
+name: Deploy to Google Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_NAME: finsolvz-backend
+  REGION: asia-southeast2
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Check code formatting
+      run: |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "❌ Code not formatted. Files:"
+          echo "$unformatted"
+          exit 1
+        fi
+        echo "✅ Code formatting OK"
+
+    - name: Run linting
+      run: |
+        echo "🔍 Running Go vet..."
+        go vet ./...
+        echo "✅ Go vet passed"
+
+    - name: Run unit tests
+      run: |
+        echo "🧪 Running unit tests..."
+        go test -v -timeout=120s -coverprofile=coverage.out ./internal/app/...
+        echo "📊 Coverage report:"
+        go tool cover -func=coverage.out | tail -5
+      env:
+        JWT_SECRET: test-jwt-secret-for-github-actions
+        CGO_ENABLED: 0
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.out
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Validate secrets
+      run: |
+        if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+          echo "❌ GCP_PROJECT_ID secret is not set"
+          echo "Please set it in GitHub repository settings > Secrets and variables > Actions"
+          exit 1
+        fi
+        if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+          echo "❌ GCP_SA_KEY secret is not set"
+          echo "Please set it in GitHub repository settings > Secrets and variables > Actions"
+          exit 1
+        fi
+        echo "✅ Required secrets are set"
+        echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Google Cloud CLI
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Configure gcloud project
+      run: |
+        gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+        
+    - name: Verify authentication
+      run: |
+        echo "Verifying GCP authentication..."
+        gcloud auth list
+        gcloud config get-value project
+        
+        echo "Enabling required APIs..."
+        # Enable APIs without interactive prompts
+        gcloud services enable cloudresourcemanager.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} --quiet || echo "Resource Manager API enable attempted"
+        gcloud services enable artifactregistry.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} --quiet || echo "Artifact Registry API enable attempted"
+        gcloud services enable run.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} --quiet || echo "Cloud Run API enable attempted"
+        
+        echo "✅ Authentication verified and APIs enabled"
+        
+    - name: Configure Docker for Artifact Registry
+      run: |
+        echo "Configuring Docker authentication for Artifact Registry..."
+        
+        # Configure docker credential helper
+        gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+        
+        # Alternative: Use gcloud as Docker credential helper directly
+        gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://${{ env.REGION }}-docker.pkg.dev
+        
+        echo "✅ Docker authentication configured"
+        
+    - name: Setup Artifact Registry repository
+      run: |
+        echo "Setting up Artifact Registry repository..."
+        echo "Project: ${{ secrets.GCP_PROJECT_ID }}"
+        echo "Region: ${{ env.REGION }}"
+        
+        # Create repository if it doesn't exist (this will fail silently if exists)
+        gcloud artifacts repositories create finsolvz \
+          --repository-format=docker \
+          --location=${{ env.REGION }} \
+          --description="Docker repository for Finsolvz Backend" \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --quiet 2>/dev/null || echo "Repository exists or creation attempted"
+        
+        echo "✅ Artifact Registry repository ready"
+
+    - name: Build Docker image
+      run: |
+        PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+        REGION="${{ env.REGION }}"
+        IMAGE_TAG="${{ github.sha }}"
+        
+        echo "Building Docker image..."
+        echo "Project ID: $PROJECT_ID"
+        echo "Region: $REGION"
+        echo "Image tag: $IMAGE_TAG"
+        
+        docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend:$IMAGE_TAG .
+        docker build -t $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend:latest .
+
+    - name: Push Docker image
+      run: |
+        PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+        REGION="${{ env.REGION }}"
+        IMAGE_TAG="${{ github.sha }}"
+        
+        echo "Pushing Docker images..."
+        echo "Registry: $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend"
+        
+        # Push with error handling
+        if ! docker push $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend:$IMAGE_TAG; then
+          echo "❌ Failed to push image. Checking permissions..."
+          echo "Current authenticated account:"
+          gcloud auth list --filter=status:ACTIVE --format="value(account)"
+          echo "Project: $PROJECT_ID"
+          echo "Required permissions:"
+          echo "  - artifactregistry.repositories.uploadArtifacts"
+          echo "  - artifactregistry.repositories.get"
+          echo "Please ensure the service account has 'Artifact Registry Writer' role"
+          exit 1
+        fi
+        
+        docker push $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend:latest
+
+    - name: Deploy to Cloud Run
+      run: |
+        PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
+        REGION="${{ env.REGION }}"
+        SERVICE_NAME="${{ env.SERVICE_NAME }}"
+        IMAGE_TAG="${{ github.sha }}"
+        
+        echo "Deploying to Cloud Run..."
+        echo "Service: $SERVICE_NAME"
+        echo "Region: $REGION"
+        echo "Image: $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend:$IMAGE_TAG"
+        
+        gcloud run deploy $SERVICE_NAME \
+          --image $REGION-docker.pkg.dev/$PROJECT_ID/finsolvz/backend:$IMAGE_TAG \
+          --region $REGION \
+          --platform managed \
+          --allow-unauthenticated \
+          --memory 512Mi \
+          --cpu 1 \
+          --port 8080 \
+          --min-instances 0 \
+          --max-instances 3 \
+          --set-env-vars APP_ENV=production \
+          --set-secrets MONGO_URI=MONGO_URI:latest,JWT_SECRET=JWT_SECRET:latest \
+          --quiet
+
+    - name: Show service URL
+      run: |
+        SERVICE_NAME="${{ env.SERVICE_NAME }}"
+        REGION="${{ env.REGION }}"
+        
+        echo "Getting service URL..."
+        SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
+          --region $REGION \
+          --format 'value(status.url)')
+        
+        echo "🚀 Service deployed successfully!"
+        echo "📍 Service URL: $SERVICE_URL"
+        echo "🌍 Region: $REGION"

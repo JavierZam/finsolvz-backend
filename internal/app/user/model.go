@@ -1,8 +1,8 @@
 package user
 
 import (
-	"time"                               // ✅ Added missing import
 	"finsolvz-backend/internal/domain"
+	"time" // ✅ Added missing import
 )
 
 // Request DTOs
@@ -32,13 +32,13 @@ type ChangePasswordRequest struct {
 
 // Response DTOs
 type UserResponse struct {
-	ID        string    `json:"_id"`        // ✅ Changed to "_id" like legacy
+	ID        string    `json:"_id"` // ✅ Changed to "_id" like legacy
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
 	Company   []string  `json:"company"`
-	CreatedAt time.Time `json:"createdAt"`  // ✅ Added missing field
-	UpdatedAt time.Time `json:"updatedAt"`  // ✅ Added missing field
+	CreatedAt time.Time `json:"createdAt"` // ✅ Added missing field
+	UpdatedAt time.Time `json:"updatedAt"` // ✅ Added missing field
 }
 
 // Helper to convert domain.User to UserResponse

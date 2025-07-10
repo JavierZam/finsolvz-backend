@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"finsolvz-backend/internal/domain"
 	"finsolvz-backend/internal/utils/errors"
@@ -51,7 +52,7 @@ func (r *companyMongoRepository) GetByID(ctx context.Context, id primitive.Objec
 }
 
 func (r *companyMongoRepository) GetAll(ctx context.Context) ([]*domain.Company, error) {
-	// Aggregation pipeline to populate user data
+	// Optimized pipeline with sub-query for better performance
 	pipeline := []bson.M{
 		{
 			"$lookup": bson.M{
@@ -59,27 +60,34 @@ func (r *companyMongoRepository) GetAll(ctx context.Context) ([]*domain.Company,
 				"localField":   "user",
 				"foreignField": "_id",
 				"as":           "userDetails",
-			},
-		},
-		{
-			"$project": bson.M{
-				"_id":             1,
-				"name":            1,
-				"profilePicture":  1,
-				"user":            1,
-				"createdAt":       1,
-				"updatedAt":       1,
-				"userDetails": bson.M{
-					"$map": bson.M{
-						"input": "$userDetails",
-						"as":    "user",
-						"in": bson.M{
-							"_id":  "$$user._id",
-							"name": "$$user.name",
+				"pipeline": []bson.M{
+					{
+						"$project": bson.M{
+							"_id":  1,
+							"name": 1,
 						},
 					},
 				},
 			},
+		},
+		{
+			"$project": bson.M{
+				"_id":            1,
+				"name":           1,
+				"profilePicture": 1,
+				"user":           1,
+				"createdAt":      1,
+				"updatedAt":      1,
+				"userDetails": bson.M{
+					"$arrayElemAt": []interface{}{"$userDetails", 0},
+				},
+			},
+		},
+		{
+			"$sort": bson.M{"createdAt": -1},
+		},
+		{
+			"$limit": 100, // Prevent massive data loads
 		},
 	}
 
@@ -154,52 +162,50 @@ func (r *companyMongoRepository) Delete(ctx context.Context, id primitive.Object
 
 func (r *companyMongoRepository) GetByName(ctx context.Context, name string) (*domain.Company, error) {
 	var company domain.Company
-	
-	// Case insensitive regex search with multiple patterns
-	patterns := []bson.M{
-		{"name": bson.M{"$regex": "^" + name + "$", "$options": "i"}},
-		{"name": bson.M{"$regex": name, "$options": "i"}},
-		{"name": bson.M{"$regex": "\\b" + name + "\\b", "$options": "i"}},
+
+	// Try exact match first (fastest, uses index)
+	err := r.collection.FindOne(ctx, bson.M{"name": name}).Decode(&company)
+	if err == nil {
+		return &company, nil
 	}
-	
-	for _, pattern := range patterns {
-		err := r.collection.FindOne(ctx, pattern).Decode(&company)
+
+	// If not found, try case insensitive exact match
+	if err == mongo.ErrNoDocuments {
+		err = r.collection.FindOne(ctx, bson.M{
+			"name": bson.M{"$regex": "^" + name + "$", "$options": "i"},
+		}).Decode(&company)
 		if err == nil {
 			return &company, nil
 		}
-		if err != mongo.ErrNoDocuments {
-			return nil, errors.New("DATABASE_ERROR", "Failed to search company", 500, err, nil)
-		}
 	}
-	
-	return nil, errors.New("COMPANY_NOT_FOUND", "Company not found", 404, nil, nil)
+
+	if err == mongo.ErrNoDocuments {
+		return nil, errors.New("COMPANY_NOT_FOUND", "Company not found", 404, nil, nil)
+	}
+
+	return nil, errors.New("DATABASE_ERROR", "Failed to search company", 500, err, nil)
 }
 
 func (r *companyMongoRepository) SearchByName(ctx context.Context, name string) ([]*domain.Company, error) {
-	// Case insensitive regex search with multiple patterns
-	patterns := []bson.M{
-		{"name": bson.M{"$regex": "^" + name + "$", "$options": "i"}},
-		{"name": bson.M{"$regex": name, "$options": "i"}},
-		{"name": bson.M{"$regex": "\\b" + name + "\\b", "$options": "i"}},
+	// Single optimized query with proper indexing
+	filter := bson.M{
+		"name": bson.M{"$regex": name, "$options": "i"},
 	}
 
+	// Add limit to prevent large result sets
+	limit := int64(50)
+	cursor, err := r.collection.Find(ctx, filter, &options.FindOptions{
+		Limit: &limit,                          // Limit search results
+		Sort:  bson.D{{Key: "name", Value: 1}}, // Sort by name for consistency
+	})
+	if err != nil {
+		return nil, errors.New("DATABASE_ERROR", "Failed to search companies", 500, err, nil)
+	}
+	defer cursor.Close(ctx)
+
 	var companies []*domain.Company
-	for _, pattern := range patterns {
-		cursor, err := r.collection.Find(ctx, pattern)
-		if err != nil {
-			return nil, errors.New("DATABASE_ERROR", "Failed to search companies", 500, err, nil)
-		}
-		defer cursor.Close(ctx)
-
-		var results []*domain.Company
-		if err = cursor.All(ctx, &results); err != nil {
-			return nil, errors.New("DATABASE_ERROR", "Failed to decode companies", 500, err, nil)
-		}
-
-		if len(results) > 0 {
-			companies = append(companies, results...)
-			break
-		}
+	if err = cursor.All(ctx, &companies); err != nil {
+		return nil, errors.New("DATABASE_ERROR", "Failed to decode companies", 500, err, nil)
 	}
 
 	if len(companies) == 0 {

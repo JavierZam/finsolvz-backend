@@ -15,7 +15,7 @@ type UpdateReportTypeRequest struct {
 
 // Response DTOs - exact legacy format
 type ReportTypeResponse struct {
-	ID   string `json:"id"`   // ✅ Changed to "id" exactly like legacy Mongoose
+	ID   string `json:"id"` // ✅ Changed to "id" exactly like legacy Mongoose
 	Name string `json:"name"`
 }
 

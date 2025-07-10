@@ -32,7 +32,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router, authMiddleware func(http.Ha
 	protected.HandleFunc("/api/company", h.CreateCompany).Methods("POST")
 	protected.HandleFunc("/api/user/companies", h.GetUserCompanies).Methods("GET")
 	protected.HandleFunc("/api/company/{idOrName}", h.GetCompanyByIDOrName).Methods("GET")
-	
+
 	// Admin-only routes
 	adminOnly := protected.PathPrefix("").Subrouter()
 	adminOnly.Use(middleware.RequireRole("SUPER_ADMIN"))
@@ -128,33 +128,33 @@ func (h *Handler) DeleteCompany(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetCompanyByIDOrName(w http.ResponseWriter, r *http.Request) {
-    vars := mux.Vars(r)
-    idOrName := vars["idOrName"]
+	vars := mux.Vars(r)
+	idOrName := vars["idOrName"]
 
-    var company *CompanyResponse
-    var err error
+	var company *CompanyResponse
+	var err error
 
-    // Check if parameter is ObjectID format (24 hex chars) or company name
-    if len(idOrName) == 24 && isHexString(idOrName) {
-        company, err = h.service.GetCompanyByID(r.Context(), idOrName)
-    } else {
-        company, err = h.service.GetCompanyByName(r.Context(), idOrName)
-    }
+	// Check if parameter is ObjectID format (24 hex chars) or company name
+	if len(idOrName) == 24 && isHexString(idOrName) {
+		company, err = h.service.GetCompanyByID(r.Context(), idOrName)
+	} else {
+		company, err = h.service.GetCompanyByName(r.Context(), idOrName)
+	}
 
-    if err != nil {
-        utils.HandleHTTPError(w, err, r)
-        return
-    }
+	if err != nil {
+		utils.HandleHTTPError(w, err, r)
+		return
+	}
 
-    utils.RespondJSON(w, http.StatusOK, company)
+	utils.RespondJSON(w, http.StatusOK, company)
 }
 
 // isHexString checks if a string contains only hexadecimal characters
 func isHexString(s string) bool {
-    for _, char := range s {
-        if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
-            return false
-        }
-    }
-    return true
+	for _, char := range s {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
