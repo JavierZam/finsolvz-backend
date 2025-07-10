@@ -70,7 +70,7 @@ func (m *mockCompanyRepository) Update(ctx context.Context, id primitive.ObjectI
 			return nil
 		}
 	}
-	return domain.ErrCompanyNotFound
+	return ErrCompanyNotFound
 }
 
 func (m *mockCompanyRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
@@ -80,7 +80,7 @@ func (m *mockCompanyRepository) Delete(ctx context.Context, id primitive.ObjectI
 			return nil
 		}
 	}
-	return domain.ErrCompanyNotFound
+	return ErrCompanyNotFound
 }
 
 func (m *mockCompanyRepository) SearchByName(ctx context.Context, name string) ([]*domain.Company, error) {
@@ -106,7 +106,7 @@ func (m *mockUserRepository) GetByID(ctx context.Context, id primitive.ObjectID)
 			return &m.users[i], nil
 		}
 	}
-	return nil, domain.ErrUserNotFound
+	return nil, ErrUserNotFound
 }
 
 func (m *mockUserRepository) Create(ctx context.Context, user *domain.User) error { return nil }

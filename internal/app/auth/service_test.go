@@ -32,7 +32,7 @@ func (m *mockUserRepository) GetByEmail(ctx context.Context, email string) (*dom
 			return &m.users[i], nil
 		}
 	}
-	return nil, domain.ErrUserNotFound
+	return nil, ErrUserNotFound
 }
 
 func (m *mockUserRepository) GetByID(ctx context.Context, id primitive.ObjectID) (*domain.User, error) {
@@ -41,7 +41,7 @@ func (m *mockUserRepository) GetByID(ctx context.Context, id primitive.ObjectID)
 			return &m.users[i], nil
 		}
 	}
-	return nil, domain.ErrUserNotFound
+	return nil, ErrUserNotFound
 }
 
 func (m *mockUserRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
@@ -60,7 +60,7 @@ func (m *mockUserRepository) Update(ctx context.Context, id primitive.ObjectID, 
 			return nil
 		}
 	}
-	return domain.ErrUserNotFound
+	return ErrUserNotFound
 }
 
 func (m *mockUserRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
@@ -70,7 +70,7 @@ func (m *mockUserRepository) Delete(ctx context.Context, id primitive.ObjectID) 
 			return nil
 		}
 	}
-	return domain.ErrUserNotFound
+	return ErrUserNotFound
 }
 
 func (m *mockUserRepository) SetResetToken(ctx context.Context, email, token string, expires time.Time) error {
@@ -81,7 +81,7 @@ func (m *mockUserRepository) SetResetToken(ctx context.Context, email, token str
 			return nil
 		}
 	}
-	return domain.ErrUserNotFound
+	return ErrUserNotFound
 }
 
 func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) (*domain.User, error) {
@@ -92,7 +92,7 @@ func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) 
 			}
 		}
 	}
-	return nil, domain.ErrUserNotFound
+	return nil, ErrUserNotFound
 }
 
 // Mock email service
@@ -106,7 +106,7 @@ func (m *mockEmailService) SendForgotPasswordEmail(to, name, newPassword string)
 	m.lastEmailTo = to
 	m.lastEmailName = name
 	if m.shouldFail {
-		return domain.ErrEmailSendFailed
+		return ErrEmailSendFailed
 	}
 	return nil
 }
@@ -190,11 +190,11 @@ func TestAuthService_Register(t *testing.T) {
 					t.Errorf("Expected response but got nil")
 				}
 				if response != nil {
-					if response.Name != tt.request.Name {
-						t.Errorf("Expected name %s, got %s", tt.request.Name, response.Name)
+					if response.User.Name != tt.request.Name {
+						t.Errorf("Expected name %s, got %s", tt.request.Name, response.User.Name)
 					}
-					if response.Email != tt.request.Email {
-						t.Errorf("Expected email %s, got %s", tt.request.Email, response.Email)
+					if response.User.Email != tt.request.Email {
+						t.Errorf("Expected email %s, got %s", tt.request.Email, response.User.Email)
 					}
 				}
 			}

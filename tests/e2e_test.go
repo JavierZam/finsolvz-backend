@@ -207,7 +207,6 @@ func TestE2E_UserJourney(t *testing.T) {
 
 	// Step 2: Register new user
 	var authToken string
-	var userID string
 
 	t.Run("Register new user", func(t *testing.T) {
 		registerReq := map[string]interface{}{
@@ -249,7 +248,7 @@ func TestE2E_UserJourney(t *testing.T) {
 				}
 
 				authToken = loginResponse.Token
-				userID = loginResponse.User.ID
+				_ = loginResponse.User.ID
 			} else {
 				t.Fatalf("Registration failed with status %d", resp.StatusCode)
 			}
@@ -260,7 +259,7 @@ func TestE2E_UserJourney(t *testing.T) {
 			}
 
 			authToken = registerResponse.Token
-			userID = registerResponse.User.ID
+			_ = registerResponse.User.ID
 
 			if authToken == "" {
 				t.Fatalf("No access token received")
