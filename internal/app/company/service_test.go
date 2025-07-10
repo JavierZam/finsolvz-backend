@@ -2,6 +2,7 @@ package company
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -126,44 +127,57 @@ func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) 
 }
 
 func TestCompanyService_CreateCompany(t *testing.T) {
+	// Setup test user
+	testUserID := primitive.NewObjectID()
+	testUser := domain.User{
+		ID:    testUserID,
+		Name:  "Test User",
+		Email: "test@example.com",
+	}
+
 	tests := []struct {
 		name        string
 		request     CreateCompanyRequest
 		expectError bool
-		setupData   func(*mockCompanyRepository)
+		setupData   func(*mockCompanyRepository, *mockUserRepository)
 	}{
 		{
 			name: "Valid company creation",
 			request: CreateCompanyRequest{
 				Name: "Test Company",
-				User: []string{primitive.NewObjectID().Hex()},
+				User: []string{testUserID.Hex()},
 			},
 			expectError: false,
-			setupData:   func(repo *mockCompanyRepository) {},
+			setupData: func(companyRepo *mockCompanyRepository, userRepo *mockUserRepository) {
+				userRepo.users = append(userRepo.users, testUser)
+			},
 		},
 		{
 			name: "Empty company name",
 			request: CreateCompanyRequest{
 				Name: "",
-				User: []string{primitive.NewObjectID().Hex()},
+				User: []string{testUserID.Hex()},
 			},
 			expectError: true,
-			setupData:   func(repo *mockCompanyRepository) {},
+			setupData: func(companyRepo *mockCompanyRepository, userRepo *mockUserRepository) {
+				userRepo.users = append(userRepo.users, testUser)
+			},
 		},
 		{
 			name: "Duplicate company name",
 			request: CreateCompanyRequest{
 				Name: "Existing Company",
-				User: []string{primitive.NewObjectID().Hex()},
+				User: []string{testUserID.Hex()},
 			},
 			expectError: true,
-			setupData: func(repo *mockCompanyRepository) {
+			setupData: func(companyRepo *mockCompanyRepository, userRepo *mockUserRepository) {
+				userRepo.users = append(userRepo.users, testUser)
 				existingCompany := domain.Company{
 					ID:   primitive.NewObjectID(),
 					Name: "Existing Company",
-					User: []primitive.ObjectID{primitive.NewObjectID()},
+					User: []primitive.ObjectID{testUserID},
 				}
-				repo.companies = append(repo.companies, existingCompany)
+				companyRepo.companies = append(companyRepo.companies, existingCompany)
 			},
 		},
 		{
@@ -173,7 +187,7 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 				User: []string{"invalid-id"},
 			},
 			expectError: true,
-			setupData:   func(repo *mockCompanyRepository) {},
+			setupData: func(companyRepo *mockCompanyRepository, userRepo *mockUserRepository) {},
 		},
 	}
 
@@ -182,7 +196,7 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 			// Setup
 			mockCompanyRepo := &mockCompanyRepository{}
 			mockUserRepo := &mockUserRepository{}
-			tt.setupData(mockCompanyRepo)
+			tt.setupData(mockCompanyRepo, mockUserRepo)
 
 			service := NewService(mockCompanyRepo, mockUserRepo)
 
@@ -342,7 +356,7 @@ func TestCompanyService_GetCompaniesPerformance(t *testing.T) {
 	for i := 0; i < 50; i++ {
 		company := domain.Company{
 			ID:   primitive.NewObjectID(),
-			Name: "Test Company " + string(rune(i)),
+			Name: fmt.Sprintf("Test Company %d", i),
 			User: []primitive.ObjectID{userID},
 		}
 		mockCompanyRepo.companies = append(mockCompanyRepo.companies, company)

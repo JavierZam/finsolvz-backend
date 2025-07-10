@@ -203,8 +203,8 @@ func TestIntegration_AuthFlow(t *testing.T) {
 		t.Fatalf("Failed to decode registration response: %v", err)
 	}
 
-	if registerResponse.Name != "Test User" {
-		t.Errorf("Expected name 'Test User', got %s", registerResponse.Name)
+	if registerResponse.User.Name != "Test User" {
+		t.Errorf("Expected name 'Test User', got %s", registerResponse.User.Name)
 	}
 
 	if registerResponse.Token == "" {

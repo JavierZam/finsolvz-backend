@@ -275,7 +275,7 @@ func TestAuthService_Login(t *testing.T) {
 				if response == nil {
 					t.Errorf("Expected response but got nil")
 				}
-				if response != nil && response.AccessToken == "" {
+				if response != nil && response.Token == "" {
 					t.Errorf("Expected access token but got empty string")
 				}
 			}
@@ -344,7 +344,7 @@ func TestAuthService_ForgotPassword(t *testing.T) {
 					t.Errorf("Expected no error but got: %v", err)
 				}
 				// Check if email was sent
-				if mockEmail.lastEmail == nil {
+				if mockEmail.lastEmailTo == "" {
 					t.Errorf("Expected email to be sent")
 				}
 			}
