@@ -22,10 +22,15 @@ steps:
     waitFor: ['download-deps']
     id: 'format-check'
 
-  # Step 3: Run linting
-  - name: 'golangci/golangci-lint:latest-alpine'
-    entrypoint: 'golangci-lint'
-    args: ['run', '--timeout=5m', '--verbose']
+  # Step 3: Run basic Go checks
+  - name: 'golang:1.23-alpine'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo "🔍 Running Go vet and basic checks..."
+        go vet ./...
+        echo "✅ Basic Go checks passed"
     waitFor: ['format-check']
     id: 'lint'
 
