@@ -193,8 +193,9 @@ func (r *companyMongoRepository) SearchByName(ctx context.Context, name string) 
 	}
 
 	// Add limit to prevent large result sets
+	limit := int64(50)
 	cursor, err := r.collection.Find(ctx, filter, &options.FindOptions{
-		Limit: bson.Int64(50),                  // Limit search results
+		Limit: &limit,                          // Limit search results
 		Sort:  bson.D{{Key: "name", Value: 1}}, // Sort by name for consistency
 	})
 	if err != nil {
