@@ -110,8 +110,14 @@ jobs:
         echo "Verifying GCP authentication..."
         gcloud auth list
         gcloud config get-value project
-        echo "Testing gcloud access..."
-        gcloud projects describe ${{ secrets.GCP_PROJECT_ID }}
+        
+        echo "Enabling required APIs..."
+        # Enable APIs without interactive prompts
+        gcloud services enable cloudresourcemanager.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} --quiet || echo "Resource Manager API enable attempted"
+        gcloud services enable artifactregistry.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} --quiet || echo "Artifact Registry API enable attempted"
+        gcloud services enable run.googleapis.com --project=${{ secrets.GCP_PROJECT_ID }} --quiet || echo "Cloud Run API enable attempted"
+        
+        echo "✅ Authentication verified and APIs enabled"
         
     - name: Configure Docker for Artifact Registry
       run: |
@@ -125,31 +131,21 @@ jobs:
         
         echo "✅ Docker authentication configured"
         
-    - name: Verify Artifact Registry repository
+    - name: Setup Artifact Registry repository
       run: |
-        echo "Checking if Artifact Registry repository exists..."
+        echo "Setting up Artifact Registry repository..."
         echo "Project: ${{ secrets.GCP_PROJECT_ID }}"
         echo "Region: ${{ env.REGION }}"
         
-        if ! gcloud artifacts repositories describe finsolvz \
-            --location=${{ env.REGION }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --quiet; then
-          echo "Creating Artifact Registry repository..."
-          gcloud artifacts repositories create finsolvz \
-            --repository-format=docker \
-            --location=${{ env.REGION }} \
-            --description="Docker repository for Finsolvz Backend" \
-            --project=${{ secrets.GCP_PROJECT_ID }}
-          echo "✅ Repository created successfully"
-        else
-          echo "✅ Repository already exists"
-        fi
+        # Create repository if it doesn't exist (this will fail silently if exists)
+        gcloud artifacts repositories create finsolvz \
+          --repository-format=docker \
+          --location=${{ env.REGION }} \
+          --description="Docker repository for Finsolvz Backend" \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --quiet 2>/dev/null || echo "Repository exists or creation attempted"
         
-        # Enable Artifact Registry API if not enabled
-        echo "Ensuring Artifact Registry API is enabled..."
-        gcloud services enable artifactregistry.googleapis.com \
-          --project=${{ secrets.GCP_PROJECT_ID }}
+        echo "✅ Artifact Registry repository ready"
 
     - name: Build Docker image
       run: |

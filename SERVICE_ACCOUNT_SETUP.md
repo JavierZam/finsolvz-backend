@@ -18,9 +18,18 @@ Service account untuk GitHub Actions membutuhkan roles berikut:
    - Act as other service accounts
    - Required for Cloud Run deployments
 
+4. **Project Viewer** (`roles/viewer`)
+   - Basic project access
+   - Required for API enablement
+   - Access to project metadata
+
 ### Additional Permissions:
-4. **Storage Admin** (`roles/storage.admin`) - Optional
+5. **Storage Admin** (`roles/storage.admin`) - Optional
    - Access to Cloud Storage buckets
+
+6. **Service Usage Admin** (`roles/serviceusage.serviceUsageAdmin`) - Optional
+   - Enable/disable APIs
+   - Better for API management
 
 ## 🛠️ Setup Commands
 
@@ -52,6 +61,16 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 gcloud projects add-iam-policy-binding $PROJECT_ID \
     --member="serviceAccount:$SA_EMAIL" \
     --role="roles/iam.serviceAccountUser"
+
+# Project Viewer (required for basic access)
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/viewer"
+
+# Service Usage Admin (for API management)
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/serviceusage.serviceUsageAdmin"
 
 # Storage Admin (optional)
 gcloud projects add-iam-policy-binding $PROJECT_ID \
