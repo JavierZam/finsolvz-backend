@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"finsolvz-backend/internal/app/auth"
-	"finsolvz-backend/internal/app/company"
 )
 
 // E2E tests run against a live server
