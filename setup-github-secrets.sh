@@ -81,13 +81,19 @@ echo "📋 Secrets configured:"
 echo "   - GCP_PROJECT_ID"
 echo "   - GCP_SA_KEY"
 echo
+echo "🔍 Verification:"
+gh secret list
+
+echo
 echo "🚀 Next steps:"
-echo "   1. Disable Cloud Build trigger in GCP Console"
-echo "   2. Push code to trigger GitHub Actions"
-echo "   3. Check Actions tab in GitHub for deployment status"
+echo "   1. Disable Cloud Build trigger: ./disable-cloudbuild.sh"
+echo "   2. Push code to trigger GitHub Actions: git push origin main"
+echo "   3. Check deployment: gh run watch"
+echo "   4. View service URL in Actions output"
 echo
 echo "🔗 Useful commands:"
 echo "   gh secret list                    # List all secrets"
-echo "   gh workflow list                  # List workflows"
+echo "   gh workflow list                  # List workflows"  
 echo "   gh run list                       # List workflow runs"
 echo "   gh run watch                      # Watch current workflow run"
+echo "   gh run view --log                 # View logs of last run"
