@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"finsolvz-backend/internal/domain"
+	"finsolvz-backend/internal/utils"
 )
 
 // Mock repositories
@@ -339,6 +340,10 @@ func TestCompanyService_GetCompanyByID(t *testing.T) {
 
 // Performance test for GetCompanies with caching
 func TestCompanyService_GetCompaniesPerformance(t *testing.T) {
+	// Clear cache before test
+	cache := utils.GetCache()
+	cache.Clear()
+
 	// Setup
 	mockCompanyRepo := &mockCompanyRepository{}
 	mockUserRepo := &mockUserRepository{}

@@ -323,7 +323,7 @@ func TestIntegration_CompanyFlow(t *testing.T) {
 	// Test: Create company
 	companyReq := map[string]interface{}{
 		"name": "Test Company Ltd",
-		"user": []string{authResponse.ID},
+		"user": []string{authResponse.User.ID},
 	}
 
 	resp, err = ts.makeRequest("POST", "/api/company", companyReq, authHeaders)

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -111,8 +112,14 @@ func (m *mockEmailService) SendForgotPasswordEmail(to, name, newPassword string)
 	return nil
 }
 
+// Setup test environment
+func setupTestEnv() {
+	os.Setenv("JWT_SECRET", "test-jwt-secret-key-for-testing")
+}
+
 // Test functions
 func TestAuthService_Register(t *testing.T) {
+	setupTestEnv()
 	tests := []struct {
 		name        string
 		request     RegisterRequest
@@ -203,6 +210,7 @@ func TestAuthService_Register(t *testing.T) {
 }
 
 func TestAuthService_Login(t *testing.T) {
+	setupTestEnv()
 	// Setup
 	mockRepo := &mockUserRepository{}
 	mockEmail := &mockEmailService{}
@@ -284,6 +292,7 @@ func TestAuthService_Login(t *testing.T) {
 }
 
 func TestAuthService_ForgotPassword(t *testing.T) {
+	setupTestEnv()
 	tests := []struct {
 		name        string
 		email       string
@@ -354,6 +363,7 @@ func TestAuthService_ForgotPassword(t *testing.T) {
 
 // Performance test
 func TestAuthService_LoginPerformance(t *testing.T) {
+	setupTestEnv()
 	// Setup
 	mockRepo := &mockUserRepository{}
 	mockEmail := &mockEmailService{}
