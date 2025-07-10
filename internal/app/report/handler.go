@@ -114,7 +114,7 @@ func (h *Handler) GetReports(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetReportsPaginated(w http.ResponseWriter, r *http.Request) {
 	pagination := utils.GetPaginationParams(r)
-	
+
 	reports, total, err := h.service.GetReportsPaginated(r.Context(), pagination.Skip, pagination.Limit)
 	if err != nil {
 		utils.HandleHTTPError(w, err, r)

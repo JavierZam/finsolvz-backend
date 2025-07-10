@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"time"
 	"finsolvz-backend/internal/domain"
+	"time"
 )
 
 // Request DTOs - ALL REQUIRED TYPES

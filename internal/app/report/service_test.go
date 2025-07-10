@@ -47,14 +47,14 @@ func (m *mockReportRepository) GetAllPaginated(ctx context.Context, skip, limit 
 	if end > total {
 		end = total
 	}
-	
+
 	var result []*domain.PopulatedReport
 	if skip < total {
 		for i := skip; i < end; i++ {
 			result = append(result, &m.reports[i])
 		}
 	}
-	
+
 	return result, total, nil
 }
 
@@ -98,7 +98,7 @@ func TestService_GetReportsPaginated(t *testing.T) {
 				UpdatedAt:  time.Now(),
 			},
 			{
-				ID:         primitive.NewObjectID(), 
+				ID:         primitive.NewObjectID(),
 				ReportName: "Test Report 2",
 				Year:       2024,
 				CreatedAt:  time.Now(),
@@ -111,15 +111,15 @@ func TestService_GetReportsPaginated(t *testing.T) {
 
 	// Test pagination
 	reports, total, err := service.GetReportsPaginated(context.Background(), 0, 1)
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	
+
 	if len(reports) != 1 {
 		t.Fatalf("Expected 1 report, got %d", len(reports))
 	}
-	
+
 	if total != 2 {
 		t.Fatalf("Expected total 2, got %d", total)
 	}
@@ -145,25 +145,25 @@ func TestService_GetReportByID_Performance(t *testing.T) {
 	start := time.Now()
 	_, err := service.GetReportByID(context.Background(), reportID)
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	
+
 	// Should complete within 100ms
 	if duration > 100*time.Millisecond {
 		t.Fatalf("GetReportByID took too long: %v", duration)
 	}
-	
+
 	// Test cache hit
 	start = time.Now()
 	_, err = service.GetReportByID(context.Background(), reportID)
 	cachedDuration := time.Since(start)
-	
+
 	if err != nil {
 		t.Fatalf("Expected no error on cached request, got %v", err)
 	}
-	
+
 	// Cached request should be much faster
 	if cachedDuration > 10*time.Millisecond {
 		t.Fatalf("Cached request took too long: %v", cachedDuration)

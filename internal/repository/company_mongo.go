@@ -162,13 +162,13 @@ func (r *companyMongoRepository) Delete(ctx context.Context, id primitive.Object
 
 func (r *companyMongoRepository) GetByName(ctx context.Context, name string) (*domain.Company, error) {
 	var company domain.Company
-	
+
 	// Try exact match first (fastest, uses index)
 	err := r.collection.FindOne(ctx, bson.M{"name": name}).Decode(&company)
 	if err == nil {
 		return &company, nil
 	}
-	
+
 	// If not found, try case insensitive exact match
 	if err == mongo.ErrNoDocuments {
 		err = r.collection.FindOne(ctx, bson.M{
@@ -178,11 +178,11 @@ func (r *companyMongoRepository) GetByName(ctx context.Context, name string) (*d
 			return &company, nil
 		}
 	}
-	
+
 	if err == mongo.ErrNoDocuments {
 		return nil, errors.New("COMPANY_NOT_FOUND", "Company not found", 404, nil, nil)
 	}
-	
+
 	return nil, errors.New("DATABASE_ERROR", "Failed to search company", 500, err, nil)
 }
 
@@ -191,10 +191,10 @@ func (r *companyMongoRepository) SearchByName(ctx context.Context, name string) 
 	filter := bson.M{
 		"name": bson.M{"$regex": name, "$options": "i"},
 	}
-	
+
 	// Add limit to prevent large result sets
 	cursor, err := r.collection.Find(ctx, filter, &options.FindOptions{
-		Limit: bson.Int64(50), // Limit search results
+		Limit: bson.Int64(50),                  // Limit search results
 		Sort:  bson.D{{Key: "name", Value: 1}}, // Sort by name for consistency
 	})
 	if err != nil {

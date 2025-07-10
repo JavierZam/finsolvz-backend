@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/bson"
 
 	"finsolvz-backend/internal/utils/log"
 )
@@ -19,11 +19,11 @@ func CreateIndexes(db *mongo.Database) error {
 	// Users collection indexes
 	userIndexes := []mongo.IndexModel{
 		{
-			Keys: bson.D{{Key: "email", Value: 1}},
+			Keys:    bson.D{{Key: "email", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys: bson.D{{Key: "resetPasswordToken", Value: 1}},
+			Keys:    bson.D{{Key: "resetPasswordToken", Value: 1}},
 			Options: options.Index().SetSparse(true),
 		},
 		{
@@ -76,7 +76,7 @@ func CreateIndexes(db *mongo.Database) error {
 	// ReportTypes collection indexes
 	reportTypeIndexes := []mongo.IndexModel{
 		{
-			Keys: bson.D{{Key: "name", Value: 1}},
+			Keys:    bson.D{{Key: "name", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 	}

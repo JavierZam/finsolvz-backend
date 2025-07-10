@@ -13,7 +13,7 @@ import (
 
 // Mock repository untuk testing
 type mockUserRepository struct {
-	users []domain.User
+	users           []domain.User
 	lastCreatedUser *domain.User
 }
 
@@ -97,7 +97,7 @@ func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) 
 
 // Mock email service
 type mockEmailService struct {
-	lastEmail *utils.EmailRequest
+	lastEmail  *utils.EmailRequest
 	shouldFail bool
 }
 
@@ -283,11 +283,11 @@ func TestAuthService_Login(t *testing.T) {
 
 func TestAuthService_ForgotPassword(t *testing.T) {
 	tests := []struct {
-		name         string
-		email        string
-		userExists   bool
-		emailFails   bool
-		expectError  bool
+		name        string
+		email       string
+		userExists  bool
+		emailFails  bool
+		expectError bool
 	}{
 		{
 			name:        "Valid forgot password",
@@ -370,7 +370,7 @@ func TestAuthService_LoginPerformance(t *testing.T) {
 
 	// Performance test
 	start := time.Now()
-	
+
 	for i := 0; i < 100; i++ {
 		_, err := service.Login(context.Background(), LoginRequest{
 			Email:    "perf@example.com",
@@ -380,14 +380,14 @@ func TestAuthService_LoginPerformance(t *testing.T) {
 			t.Fatalf("Login failed in performance test: %v", err)
 		}
 	}
-	
+
 	duration := time.Since(start)
 	avgPerRequest := duration / 100
-	
+
 	// Should complete 100 logins in reasonable time
 	if avgPerRequest > 10*time.Millisecond {
 		t.Errorf("Login performance too slow: %v per request", avgPerRequest)
 	}
-	
+
 	t.Logf("Login performance: %v per request (100 requests in %v)", avgPerRequest, duration)
 }

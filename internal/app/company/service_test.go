@@ -110,12 +110,20 @@ func (m *mockUserRepository) GetByID(ctx context.Context, id primitive.ObjectID)
 }
 
 func (m *mockUserRepository) Create(ctx context.Context, user *domain.User) error { return nil }
-func (m *mockUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) { return nil, nil }
+func (m *mockUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	return nil, nil
+}
 func (m *mockUserRepository) GetAll(ctx context.Context) ([]*domain.User, error) { return nil, nil }
-func (m *mockUserRepository) Update(ctx context.Context, id primitive.ObjectID, user *domain.User) error { return nil }
+func (m *mockUserRepository) Update(ctx context.Context, id primitive.ObjectID, user *domain.User) error {
+	return nil
+}
 func (m *mockUserRepository) Delete(ctx context.Context, id primitive.ObjectID) error { return nil }
-func (m *mockUserRepository) SetResetToken(ctx context.Context, email, token string, expires time.Time) error { return nil }
-func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) (*domain.User, error) { return nil, nil }
+func (m *mockUserRepository) SetResetToken(ctx context.Context, email, token string, expires time.Time) error {
+	return nil
+}
+func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) (*domain.User, error) {
+	return nil, nil
+}
 
 func TestCompanyService_CreateCompany(t *testing.T) {
 	tests := []struct {
@@ -175,7 +183,7 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 			mockCompanyRepo := &mockCompanyRepository{}
 			mockUserRepo := &mockUserRepository{}
 			tt.setupData(mockCompanyRepo)
-			
+
 			service := NewService(mockCompanyRepo, mockUserRepo)
 
 			// Execute
@@ -208,23 +216,23 @@ func TestCompanyService_GetCompanies(t *testing.T) {
 	// Setup
 	mockCompanyRepo := &mockCompanyRepository{}
 	mockUserRepo := &mockUserRepository{}
-	
+
 	// Add test data
 	userID := primitive.NewObjectID()
 	testUser := domain.User{
-		ID:   userID,
-		Name: "Test User",
+		ID:    userID,
+		Name:  "Test User",
 		Email: "test@example.com",
 	}
 	mockUserRepo.users = append(mockUserRepo.users, testUser)
-	
+
 	testCompany := domain.Company{
 		ID:   primitive.NewObjectID(),
 		Name: "Test Company",
 		User: []primitive.ObjectID{userID},
 	}
 	mockCompanyRepo.companies = append(mockCompanyRepo.companies, testCompany)
-	
+
 	service := NewService(mockCompanyRepo, mockUserRepo)
 
 	// Execute
@@ -234,11 +242,11 @@ func TestCompanyService_GetCompanies(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error but got: %v", err)
 	}
-	
+
 	if len(companies) != 1 {
 		t.Errorf("Expected 1 company, got %d", len(companies))
 	}
-	
+
 	if len(companies) > 0 && companies[0].Name != "Test Company" {
 		t.Errorf("Expected company name 'Test Company', got %s", companies[0].Name)
 	}
@@ -248,24 +256,24 @@ func TestCompanyService_GetCompanyByID(t *testing.T) {
 	// Setup
 	mockCompanyRepo := &mockCompanyRepository{}
 	mockUserRepo := &mockUserRepository{}
-	
+
 	companyID := primitive.NewObjectID()
 	userID := primitive.NewObjectID()
-	
+
 	testUser := domain.User{
-		ID:   userID,
-		Name: "Test User",
+		ID:    userID,
+		Name:  "Test User",
 		Email: "test@example.com",
 	}
 	mockUserRepo.users = append(mockUserRepo.users, testUser)
-	
+
 	testCompany := domain.Company{
 		ID:   companyID,
 		Name: "Test Company",
 		User: []primitive.ObjectID{userID},
 	}
 	mockCompanyRepo.companies = append(mockCompanyRepo.companies, testCompany)
-	
+
 	service := NewService(mockCompanyRepo, mockUserRepo)
 
 	tests := []struct {
@@ -320,16 +328,16 @@ func TestCompanyService_GetCompaniesPerformance(t *testing.T) {
 	// Setup
 	mockCompanyRepo := &mockCompanyRepository{}
 	mockUserRepo := &mockUserRepository{}
-	
+
 	// Add multiple companies for performance testing
 	userID := primitive.NewObjectID()
 	testUser := domain.User{
-		ID:   userID,
-		Name: "Test User",
+		ID:    userID,
+		Name:  "Test User",
 		Email: "test@example.com",
 	}
 	mockUserRepo.users = append(mockUserRepo.users, testUser)
-	
+
 	// Add 50 companies
 	for i := 0; i < 50; i++ {
 		company := domain.Company{
@@ -339,14 +347,14 @@ func TestCompanyService_GetCompaniesPerformance(t *testing.T) {
 		}
 		mockCompanyRepo.companies = append(mockCompanyRepo.companies, company)
 	}
-	
+
 	service := NewService(mockCompanyRepo, mockUserRepo)
 
 	// First call (no cache)
 	start := time.Now()
 	companies1, err := service.GetCompanies(context.Background())
 	firstCallDuration := time.Since(start)
-	
+
 	if err != nil {
 		t.Fatalf("First call failed: %v", err)
 	}
@@ -355,7 +363,7 @@ func TestCompanyService_GetCompaniesPerformance(t *testing.T) {
 	start = time.Now()
 	companies2, err := service.GetCompanies(context.Background())
 	secondCallDuration := time.Since(start)
-	
+
 	if err != nil {
 		t.Fatalf("Second call failed: %v", err)
 	}
@@ -364,25 +372,25 @@ func TestCompanyService_GetCompaniesPerformance(t *testing.T) {
 	if len(companies1) != len(companies2) {
 		t.Errorf("Cache returned different number of companies")
 	}
-	
+
 	if len(companies1) != 50 {
 		t.Errorf("Expected 50 companies, got %d", len(companies1))
 	}
 
 	// Second call should be faster (cached)
 	if secondCallDuration > firstCallDuration {
-		t.Logf("Warning: Cached call took longer than first call. First: %v, Second: %v", 
+		t.Logf("Warning: Cached call took longer than first call. First: %v, Second: %v",
 			firstCallDuration, secondCallDuration)
 	}
-	
-	t.Logf("Performance test - First call: %v, Cached call: %v", 
+
+	t.Logf("Performance test - First call: %v, Cached call: %v",
 		firstCallDuration, secondCallDuration)
 
 	// Both calls should be reasonably fast
 	if firstCallDuration > 100*time.Millisecond {
 		t.Errorf("First call too slow: %v", firstCallDuration)
 	}
-	
+
 	if secondCallDuration > 50*time.Millisecond {
 		t.Errorf("Cached call too slow: %v", secondCallDuration)
 	}

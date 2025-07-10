@@ -112,7 +112,7 @@ func (h *Handler) UpdateReportType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
-		"message":    "Report Type updated successfully", 
+		"message":    "Report Type updated successfully",
 		"reportType": reportType,
 	})
 }

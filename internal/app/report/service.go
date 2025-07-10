@@ -237,7 +237,7 @@ func (s *service) GetReportByID(ctx context.Context, id string) (*ReportResponse
 	// Try cache first
 	cache := utils.GetCache()
 	cacheKey := fmt.Sprintf("report:%s", id)
-	
+
 	if cached, found := cache.Get(cacheKey); found {
 		return cached.(*ReportResponse), nil
 	}
@@ -253,10 +253,10 @@ func (s *service) GetReportByID(ctx context.Context, id string) (*ReportResponse
 	}
 
 	response := ToReportResponse(report)
-	
+
 	// Cache for 5 minutes
 	cache.Set(cacheKey, response, 5*time.Minute)
-	
+
 	return response, nil
 }
 

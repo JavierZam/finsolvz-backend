@@ -14,7 +14,7 @@ import (
 
 	"finsolvz-backend/internal/app/auth"
 	"finsolvz-backend/internal/app/company"
-	"finsolvz-backend/internal/app/report" 
+	"finsolvz-backend/internal/app/report"
 	"finsolvz-backend/internal/app/reporttype"
 	"finsolvz-backend/internal/app/user"
 	"finsolvz-backend/internal/config"
@@ -90,7 +90,7 @@ func main() {
 		if _, err := os.Stat("./api/openapi.yaml"); err != nil {
 			utils.RespondJSON(w, http.StatusOK, map[string]interface{}{
 				"openapi_yaml_exists": false,
-				"error": err.Error(),
+				"error":               err.Error(),
 				"working_directory": func() string {
 					wd, _ := os.Getwd()
 					return wd
@@ -139,7 +139,7 @@ func main() {
 			http.Error(w, "OpenAPI spec not found", http.StatusNotFound)
 			return
 		}
-		
+
 		w.Header().Set("Content-Type", "application/x-yaml")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		http.ServeFile(w, r, filePath)

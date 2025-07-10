@@ -227,7 +227,7 @@ func TestE2E_UserJourney(t *testing.T) {
 			// If registration fails (e.g., user exists), try login instead
 			if resp.StatusCode == http.StatusConflict {
 				t.Logf("User already exists, attempting login...")
-				
+
 				loginReq := map[string]interface{}{
 					"email":    testEmail,
 					"password": "password123",
@@ -331,7 +331,7 @@ func TestE2E_UserJourney(t *testing.T) {
 
 		t.Logf("✅ Authenticated request performance:")
 		t.Logf("   Request 1: %v", durations[0])
-		t.Logf("   Request 2: %v", durations[1]) 
+		t.Logf("   Request 2: %v", durations[1])
 		t.Logf("   Request 3: %v", durations[2])
 		t.Logf("   Average: %v", average)
 
@@ -416,7 +416,7 @@ func TestE2E_RateLimit(t *testing.T) {
 		if resp.StatusCode == http.StatusTooManyRequests {
 			rateLimitHit = true
 			t.Logf("✅ Rate limit triggered at request %d", i+1)
-			
+
 			// Check rate limit headers
 			if limit := resp.Header.Get("X-RateLimit-Limit"); limit != "" {
 				t.Logf("   Rate limit: %s", limit)

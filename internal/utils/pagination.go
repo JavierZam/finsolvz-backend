@@ -7,16 +7,16 @@ import (
 
 // PaginationParams holds pagination parameters
 type PaginationParams struct {
-	Page    int `json:"page"`
-	Limit   int `json:"limit"`
-	Skip    int `json:"skip"`
-	Total   int `json:"total,omitempty"`
+	Page  int `json:"page"`
+	Limit int `json:"limit"`
+	Skip  int `json:"skip"`
+	Total int `json:"total,omitempty"`
 }
 
 // PaginatedResponse wraps data with pagination info
 type PaginatedResponse struct {
-	Data       interface{}       `json:"data"`
-	Pagination PaginationParams  `json:"pagination"`
+	Data       interface{}      `json:"data"`
+	Pagination PaginationParams `json:"pagination"`
 }
 
 // GetPaginationParams extracts pagination parameters from request

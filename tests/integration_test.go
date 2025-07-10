@@ -32,18 +32,18 @@ const (
 
 // Test server setup
 type TestServer struct {
-	Server     *httptest.Server
-	Router     *mux.Router
-	DB         *mongo.Database
-	AuthToken  string
-	AdminUser  *auth.AuthResponse
+	Server    *httptest.Server
+	Router    *mux.Router
+	DB        *mongo.Database
+	AuthToken string
+	AdminUser *auth.AuthResponse
 }
 
 // Setup test server
 func setupTestServer(t *testing.T) *TestServer {
 	// Setup test database
 	ctx := context.Background()
-	
+
 	// Use environment variable or default to localhost
 	mongoURI := os.Getenv("TEST_MONGO_URI")
 	if mongoURI == "" {

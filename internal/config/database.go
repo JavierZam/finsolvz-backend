@@ -20,8 +20,8 @@ func ConnectMongoDB(ctx context.Context) (*mongo.Database, error) {
 
 	// Set client options optimized for production
 	clientOptions := options.Client().ApplyURI(mongoURI)
-	clientOptions.SetMaxPoolSize(50)                    // Increased from 10
-	clientOptions.SetMinPoolSize(5)                     // Maintain minimum connections
+	clientOptions.SetMaxPoolSize(50)                   // Increased from 10
+	clientOptions.SetMinPoolSize(5)                    // Maintain minimum connections
 	clientOptions.SetMaxConnIdleTime(10 * time.Minute) // Longer idle time
 	clientOptions.SetTimeout(5 * time.Second)          // Faster timeout for failed connections
 	clientOptions.SetMaxConnecting(10)                 // Limit concurrent connections
@@ -41,13 +41,13 @@ func ConnectMongoDB(ctx context.Context) (*mongo.Database, error) {
 
 	// Return the database instance
 	database := client.Database("Finsolvz")
-	
+
 	// Create indexes for optimal performance (async, don't block startup)
 	go func() {
 		if err := CreateIndexes(database); err != nil {
 			log.Warnf(context.Background(), "Failed to create some indexes: %v", err)
 		}
 	}()
-	
+
 	return database, nil
 }

@@ -8,25 +8,25 @@ import (
 
 // Request DTOs
 type CreateCompanyRequest struct {
-	Name         string   `json:"name" validate:"required,min=2,max=100"`
-	ProfilePicture *string `json:"profilePicture,omitempty"`
-	User         []string `json:"user,omitempty"` // Array of user IDs as strings
+	Name           string   `json:"name" validate:"required,min=2,max=100"`
+	ProfilePicture *string  `json:"profilePicture,omitempty"`
+	User           []string `json:"user,omitempty"` // Array of user IDs as strings
 }
 
 type UpdateCompanyRequest struct {
 	Name           *string  `json:"name,omitempty" validate:"omitempty,min=2,max=100"`
 	ProfilePicture *string  `json:"profilePicture,omitempty"` // Simple URL string
-	User           []string `json:"user,omitempty"` // Array of user IDs as strings
+	User           []string `json:"user,omitempty"`           // Array of user IDs as strings
 }
 
 // Response DTOs - exact legacy format
 type CompanyResponse struct {
-	ID             string      `json:"_id"`   // ✅ Changed to "_id" exactly like legacy
-	Name           string      `json:"name"`
-	ProfilePicture *string     `json:"profilePicture"`
-	User           []UserInfo  `json:"user"`   // Populated user data
-	CreatedAt      time.Time   `json:"createdAt"`
-	UpdatedAt      time.Time   `json:"updatedAt"`
+	ID             string     `json:"_id"` // ✅ Changed to "_id" exactly like legacy
+	Name           string     `json:"name"`
+	ProfilePicture *string    `json:"profilePicture"`
+	User           []UserInfo `json:"user"` // Populated user data
+	CreatedAt      time.Time  `json:"createdAt"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
 }
 
 type UserInfo struct {
