@@ -187,7 +187,7 @@ func TestCompanyService_CreateCompany(t *testing.T) {
 				User: []string{"invalid-id"},
 			},
 			expectError: true,
-			setupData: func(companyRepo *mockCompanyRepository, userRepo *mockUserRepository) {},
+			setupData:   func(companyRepo *mockCompanyRepository, userRepo *mockUserRepository) {},
 		},
 	}
 
