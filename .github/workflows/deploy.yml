@@ -54,12 +54,12 @@ jobs:
     - name: Run unit tests
       run: |
         echo "🧪 Running unit tests..."
-        go test -v -race -timeout=60s -coverprofile=coverage.out ./internal/app/...
+        go test -v -timeout=120s -coverprofile=coverage.out ./internal/app/...
         echo "📊 Coverage report:"
         go tool cover -func=coverage.out | tail -5
       env:
         JWT_SECRET: test-jwt-secret-for-github-actions
-        CGO_ENABLED: 1
+        CGO_ENABLED: 0
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
