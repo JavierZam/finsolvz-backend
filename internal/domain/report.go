@@ -40,6 +40,7 @@ type ReportRepository interface {
 	GetByID(ctx context.Context, id primitive.ObjectID) (*PopulatedReport, error)
 	GetByName(ctx context.Context, name string) (*PopulatedReport, error)
 	GetAll(ctx context.Context) ([]*PopulatedReport, error)
+	GetAllPaginated(ctx context.Context, skip, limit int) ([]*PopulatedReport, int, error)
 	GetByCompany(ctx context.Context, companyID primitive.ObjectID) ([]*PopulatedReport, error)
 	GetByCompanies(ctx context.Context, companyIDs []primitive.ObjectID) ([]*PopulatedReport, error)
 	GetByReportType(ctx context.Context, reportTypeID primitive.ObjectID) ([]*PopulatedReport, error)

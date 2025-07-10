@@ -58,6 +58,9 @@ func main() {
 
 	router.Use(middleware.LoggingMiddleware)
 	router.Use(middleware.RecoveryMiddleware)
+	router.Use(middleware.CompressionMiddleware)
+	router.Use(middleware.RequestLimitMiddleware)
+	router.Use(middleware.RateLimitMiddleware(100)) // 100 requests per minute
 
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

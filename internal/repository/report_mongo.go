@@ -35,64 +35,89 @@ func (r *reportMongoRepository) Create(ctx context.Context, report *domain.Repor
 	return nil
 }
 
-// getPopulationPipeline creates an aggregation pipeline for populating report references.
+// getPopulationPipeline creates an optimized aggregation pipeline for populating report references.
 func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 	return []bson.M{
-		// Populate company
+		// Single lookup with pipeline for company (more efficient)
 		{
 			"$lookup": bson.M{
 				"from":         "companies",
 				"localField":   "company",
 				"foreignField": "_id",
 				"as":           "company",
+				"pipeline": []bson.M{
+					{
+						"$project": bson.M{
+							"_id":            1,
+							"name":           1,
+							"profilePicture": 1,
+							"createdAt":      1,
+							"updatedAt":      1,
+						},
+					},
+				},
 			},
 		},
-		{
-			"$unwind": bson.M{
-				"path":                       "$company",
-				"preserveNullAndEmptyArrays": true,
-			},
-		},
-		// Populate reportType
+		// Single lookup with pipeline for reportType
 		{
 			"$lookup": bson.M{
 				"from":         "reporttypes",
 				"localField":   "reportType",
 				"foreignField": "_id",
 				"as":           "reportType",
+				"pipeline": []bson.M{
+					{
+						"$project": bson.M{
+							"_id":  1,
+							"name": 1,
+						},
+					},
+				},
 			},
 		},
-		{
-			"$unwind": bson.M{
-				"path":                       "$reportType",
-				"preserveNullAndEmptyArrays": true,
-			},
-		},
-		// Populate createdBy
+		// Single lookup with pipeline for createdBy
 		{
 			"$lookup": bson.M{
 				"from":         "users",
 				"localField":   "createdBy",
 				"foreignField": "_id",
 				"as":           "createdBy",
+				"pipeline": []bson.M{
+					{
+						"$project": bson.M{
+							"_id":       1,
+							"name":      1,
+							"email":     1,
+							"role":      1,
+							"createdAt": 1,
+							"updatedAt": 1,
+						},
+					},
+				},
 			},
 		},
-		{
-			"$unwind": bson.M{
-				"path":                       "$createdBy",
-				"preserveNullAndEmptyArrays": true,
-			},
-		},
-		// Populate userAccess array
+		// Single lookup with pipeline for userAccess
 		{
 			"$lookup": bson.M{
 				"from":         "users",
 				"localField":   "userAccess",
 				"foreignField": "_id",
 				"as":           "userAccess",
+				"pipeline": []bson.M{
+					{
+						"$project": bson.M{
+							"_id":       1,
+							"name":      1,
+							"email":     1,
+							"role":      1,
+							"createdAt": 1,
+							"updatedAt": 1,
+						},
+					},
+				},
 			},
 		},
-		// Project final structure excluding sensitive fields
+		// Single project stage to flatten single-item arrays
 		{
 			"$project": bson.M{
 				"_id":        1,
@@ -103,38 +128,15 @@ func (r *reportMongoRepository) getPopulationPipeline() []bson.M {
 				"createdAt":  1,
 				"updatedAt":  1,
 				"company": bson.M{
-					"_id":            1,
-					"name":           1,
-					"profilePicture": 1,
-					"createdAt":      1,
-					"updatedAt":      1,
+					"$arrayElemAt": []interface{}{"$company", 0},
 				},
 				"reportType": bson.M{
-					"_id":  1,
-					"name": 1,
+					"$arrayElemAt": []interface{}{"$reportType", 0},
 				},
 				"createdBy": bson.M{
-					"_id":       1,
-					"name":      1,
-					"email":     1,
-					"role":      1,
-					"createdAt": 1,
-					"updatedAt": 1,
+					"$arrayElemAt": []interface{}{"$createdBy", 0},
 				},
-				"userAccess": bson.M{
-					"$map": bson.M{
-						"input": "$userAccess",
-						"as":    "user",
-						"in": bson.M{
-							"_id":       "$$user._id",
-							"name":      "$$user.name",
-							"email":     "$$user.email",
-							"role":      "$$user.role",
-							"createdAt": "$$user.createdAt",
-							"updatedAt": "$$user.updatedAt",
-						},
-					},
-				},
+				"userAccess": 1, // Keep as array
 			},
 		},
 	}
@@ -195,6 +197,33 @@ func (r *reportMongoRepository) GetAll(ctx context.Context) ([]*domain.Populated
 	}
 
 	return reports, nil
+}
+
+// GetAllPaginated retrieves reports with pagination
+func (r *reportMongoRepository) GetAllPaginated(ctx context.Context, skip, limit int) ([]*domain.PopulatedReport, int, error) {
+	// Get total count
+	total, err := r.collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, 0, errors.New("DATABASE_ERROR", "Failed to count reports", 500, err, nil)
+	}
+
+	// Add pagination to pipeline
+	pipeline := r.getPopulationPipeline()
+	pipeline = append(pipeline, bson.M{"$skip": skip})
+	pipeline = append(pipeline, bson.M{"$limit": limit})
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, 0, errors.New("DATABASE_ERROR", "Failed to get reports", 500, err, nil)
+	}
+	defer cursor.Close(ctx)
+
+	var reports []*domain.PopulatedReport
+	if err = cursor.All(ctx, &reports); err != nil {
+		return nil, 0, errors.New("DATABASE_ERROR", "Failed to decode reports", 500, err, nil)
+	}
+
+	return reports, int(total), nil
 }
 
 func (r *reportMongoRepository) GetByCompany(ctx context.Context, companyID primitive.ObjectID) ([]*domain.PopulatedReport, error) {

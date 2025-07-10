@@ -2,12 +2,15 @@ package report
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"finsolvz-backend/internal/domain"
+	"finsolvz-backend/internal/utils"
 	"finsolvz-backend/internal/utils/errors"
 )
 
@@ -16,6 +19,7 @@ type Service interface {
 	UpdateReport(ctx context.Context, id string, req UpdateReportRequest) (*ReportResponse, error)
 	DeleteReport(ctx context.Context, id string) error
 	GetReports(ctx context.Context) ([]*ReportResponse, error)
+	GetReportsPaginated(ctx context.Context, skip, limit int) ([]*ReportResponse, int, error)
 	GetReportByID(ctx context.Context, id string) (*ReportResponse, error)
 	GetReportByName(ctx context.Context, name string) (*ReportResponse, error)
 	GetReportsByCompany(ctx context.Context, companyID string) ([]*ReportResponse, error)
@@ -184,6 +188,11 @@ func (s *service) UpdateReport(ctx context.Context, id string, req UpdateReportR
 		return nil, err
 	}
 
+	// Invalidate cache
+	cache := utils.GetCache()
+	cacheKey := fmt.Sprintf("report:%s", id)
+	cache.Delete(cacheKey)
+
 	return ToReportResponse(updatedReport), nil
 }
 
@@ -193,7 +202,17 @@ func (s *service) DeleteReport(ctx context.Context, id string) error {
 		return errors.New("INVALID_REPORT_ID", "Invalid report ID format", 400, err, nil)
 	}
 
-	return s.reportRepo.Delete(ctx, reportID)
+	err = s.reportRepo.Delete(ctx, reportID)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate cache
+	cache := utils.GetCache()
+	cacheKey := fmt.Sprintf("report:%s", id)
+	cache.Delete(cacheKey)
+
+	return nil
 }
 
 func (s *service) GetReports(ctx context.Context) ([]*ReportResponse, error) {
@@ -205,7 +224,24 @@ func (s *service) GetReports(ctx context.Context) ([]*ReportResponse, error) {
 	return ToReportResponseArray(reports), nil
 }
 
+func (s *service) GetReportsPaginated(ctx context.Context, skip, limit int) ([]*ReportResponse, int, error) {
+	reports, total, err := s.reportRepo.GetAllPaginated(ctx, skip, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return ToReportResponseArray(reports), total, nil
+}
+
 func (s *service) GetReportByID(ctx context.Context, id string) (*ReportResponse, error) {
+	// Try cache first
+	cache := utils.GetCache()
+	cacheKey := fmt.Sprintf("report:%s", id)
+	
+	if cached, found := cache.Get(cacheKey); found {
+		return cached.(*ReportResponse), nil
+	}
+
 	reportID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, errors.New("INVALID_REPORT_ID", "Invalid report ID format", 400, err, nil)
@@ -216,7 +252,12 @@ func (s *service) GetReportByID(ctx context.Context, id string) (*ReportResponse
 		return nil, err
 	}
 
-	return ToReportResponse(report), nil
+	response := ToReportResponse(report)
+	
+	// Cache for 5 minutes
+	cache.Set(cacheKey, response, 5*time.Minute)
+	
+	return response, nil
 }
 
 func (s *service) GetReportByName(ctx context.Context, name string) (*ReportResponse, error) {
