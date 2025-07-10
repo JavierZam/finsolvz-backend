@@ -248,8 +248,8 @@ func TestE2E_UserJourney(t *testing.T) {
 					t.Fatalf("Failed to decode login response: %v", err)
 				}
 
-				authToken = loginResponse.AccessToken
-				userID = loginResponse.ID
+				authToken = loginResponse.Token
+				userID = loginResponse.User.ID
 			} else {
 				t.Fatalf("Registration failed with status %d", resp.StatusCode)
 			}
@@ -259,8 +259,8 @@ func TestE2E_UserJourney(t *testing.T) {
 				t.Fatalf("Failed to decode registration response: %v", err)
 			}
 
-			authToken = registerResponse.AccessToken
-			userID = registerResponse.ID
+			authToken = registerResponse.Token
+			userID = registerResponse.User.ID
 
 			if authToken == "" {
 				t.Fatalf("No access token received")

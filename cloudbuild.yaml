@@ -41,6 +41,8 @@ steps:
       - '-c'
       - |
         echo "🧪 Running unit tests with coverage..."
+        # Install gcc for cgo
+        apk add --no-cache gcc musl-dev
         go test -v -race -timeout=60s -coverprofile=coverage.out ./internal/app/...
         echo "📊 Coverage report:"
         go tool cover -func=coverage.out | tail -5

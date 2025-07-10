@@ -97,12 +97,14 @@ func (m *mockUserRepository) GetByResetToken(ctx context.Context, token string) 
 
 // Mock email service
 type mockEmailService struct {
-	lastEmail  *utils.EmailRequest
-	shouldFail bool
+	lastEmailTo   string
+	lastEmailName string
+	shouldFail    bool
 }
 
-func (m *mockEmailService) SendEmail(req utils.EmailRequest) error {
-	m.lastEmail = &req
+func (m *mockEmailService) SendForgotPasswordEmail(to, name, newPassword string) error {
+	m.lastEmailTo = to
+	m.lastEmailName = name
 	if m.shouldFail {
 		return domain.ErrEmailSendFailed
 	}

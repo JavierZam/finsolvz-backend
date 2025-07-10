@@ -29,7 +29,7 @@ func (m *mockCompanyRepository) GetByID(ctx context.Context, id primitive.Object
 			return &m.companies[i], nil
 		}
 	}
-	return nil, domain.ErrCompanyNotFound
+	return nil, ErrCompanyNotFound
 }
 
 func (m *mockCompanyRepository) GetByName(ctx context.Context, name string) (*domain.Company, error) {
@@ -38,7 +38,7 @@ func (m *mockCompanyRepository) GetByName(ctx context.Context, name string) (*do
 			return &m.companies[i], nil
 		}
 	}
-	return nil, domain.ErrCompanyNotFound
+	return nil, ErrCompanyNotFound
 }
 
 func (m *mockCompanyRepository) GetAll(ctx context.Context) ([]*domain.Company, error) {
@@ -91,7 +91,7 @@ func (m *mockCompanyRepository) SearchByName(ctx context.Context, name string) (
 		}
 	}
 	if len(result) == 0 {
-		return nil, domain.ErrCompanyNotFound
+		return nil, ErrCompanyNotFound
 	}
 	return result, nil
 }

@@ -207,7 +207,7 @@ func TestIntegration_AuthFlow(t *testing.T) {
 		t.Errorf("Expected name 'Test User', got %s", registerResponse.Name)
 	}
 
-	if registerResponse.AccessToken == "" {
+	if registerResponse.Token == "" {
 		t.Errorf("Expected access token, got empty string")
 	}
 
@@ -232,12 +232,12 @@ func TestIntegration_AuthFlow(t *testing.T) {
 		t.Fatalf("Failed to decode login response: %v", err)
 	}
 
-	if loginResponse.AccessToken == "" {
+	if loginResponse.Token == "" {
 		t.Errorf("Expected access token, got empty string")
 	}
 
 	// Store auth token for subsequent tests
-	ts.AuthToken = loginResponse.AccessToken
+	ts.AuthToken = loginResponse.Token
 	ts.AdminUser = &loginResponse
 }
 
@@ -266,7 +266,7 @@ func TestIntegration_ProtectedEndpoints(t *testing.T) {
 	}
 
 	authHeaders := map[string]string{
-		"Authorization": "Bearer " + authResponse.AccessToken,
+		"Authorization": "Bearer " + authResponse.Token,
 	}
 
 	// Test accessing protected endpoint without auth
@@ -317,7 +317,7 @@ func TestIntegration_CompanyFlow(t *testing.T) {
 	}
 
 	authHeaders := map[string]string{
-		"Authorization": "Bearer " + authResponse.AccessToken,
+		"Authorization": "Bearer " + authResponse.Token,
 	}
 
 	// Test: Create company
@@ -447,7 +447,7 @@ func TestIntegration_Performance(t *testing.T) {
 	}
 
 	authHeaders := map[string]string{
-		"Authorization": "Bearer " + authResponse.AccessToken,
+		"Authorization": "Bearer " + authResponse.Token,
 	}
 
 	// Performance test: Multiple health checks
