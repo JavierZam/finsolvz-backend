@@ -1,0 +1,95 @@
+name: Test Pull Request
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        go-version: ['1.22', '1.23']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ matrix.go-version }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-${{ matrix.go-version }}-
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Check code formatting
+      run: |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "❌ Code not formatted. Files:"
+          echo "$unformatted"
+          echo "Please run: gofmt -w ."
+          exit 1
+        fi
+        echo "✅ Code formatting OK"
+
+    - name: Run linting
+      run: |
+        echo "🔍 Running Go vet..."
+        go vet ./...
+        echo "✅ Go vet passed"
+
+    - name: Run unit tests
+      run: |
+        echo "🧪 Running unit tests with Go ${{ matrix.go-version }}..."
+        go test -v -race -timeout=60s -coverprofile=coverage-${{ matrix.go-version }}.out ./internal/app/...
+        echo "📊 Coverage report:"
+        go tool cover -func=coverage-${{ matrix.go-version }}.out | tail -5
+      env:
+        JWT_SECRET: test-jwt-secret-for-github-actions
+        CGO_ENABLED: 1
+
+    - name: Build test
+      run: |
+        echo "🔨 Testing build..."
+        go build -o finsolvz-backend-test ./cmd/server
+        ls -la finsolvz-backend-test
+        echo "✅ Build successful"
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-go-${{ matrix.go-version }}
+        path: coverage-${{ matrix.go-version }}.out
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Run Gosec Security Scanner
+      uses: securecodewarrior/github-action-gosec@master
+      with:
+        args: '-fmt sarif -out gosec.sarif ./...'
+        
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: gosec.sarif

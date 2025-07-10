@@ -1,0 +1,62 @@
+name: Production Health Check
+
+on:
+  schedule:
+    # Run health check every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.22'
+
+    - name: Get service URL
+      id: get-url
+      run: |
+        echo "SERVICE_URL=https://finsolvz-backend-${{ secrets.GCP_PROJECT_ID }}.a.run.app" >> $GITHUB_OUTPUT
+
+    - name: Health check
+      run: |
+        echo "🏥 Running health check against production..."
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-url.outputs.SERVICE_URL }})
+        
+        if [ "$response" = "200" ]; then
+          echo "✅ Health check passed - Status: $response"
+        else
+          echo "❌ Health check failed - Status: $response"
+          exit 1
+        fi
+
+    - name: Performance test
+      run: |
+        echo "⚡ Running performance test..."
+        start_time=$(date +%s%N)
+        curl -s ${{ steps.get-url.outputs.SERVICE_URL }} > /dev/null
+        end_time=$(date +%s%N)
+        
+        duration=$(( (end_time - start_time) / 1000000 ))
+        echo "🕐 Response time: ${duration}ms"
+        
+        if [ $duration -gt 2000 ]; then
+          echo "⚠️ Slow response time: ${duration}ms (threshold: 2000ms)"
+          exit 1
+        else
+          echo "✅ Performance OK: ${duration}ms"
+        fi
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "🚨 Production health check failed!"
+        echo "Service URL: ${{ steps.get-url.outputs.SERVICE_URL }}"
+        echo "Time: $(date)"
+        # Add notification logic here (Slack, Discord, email, etc.)
